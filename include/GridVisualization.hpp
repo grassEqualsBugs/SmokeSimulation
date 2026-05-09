@@ -16,13 +16,16 @@ public:
 
     GridVisualization(FluidGrid& fluidGrid);
 
-    void DrawOutlinedText(const char *text, int posX, int posY, int fontSize, Color color, int outlineSize, Color outlineColor);
-
-    Vector2 cellCenter(int x, int y);
-    Vector2 cellBottomLeft(int x, int y);
-    Vector2 leftEdgeCenter(int x, int y);
-    Vector2 bottomEdgeCenter(int x, int y);
+    Vector2 cellCenter(int x, int y) const;
+    Vector2 cellBottomLeft(int x, int y) const;
+    Vector2 leftEdgeCenter(int x, int y) const;
+    Vector2 bottomEdgeCenter(int x, int y) const;
 
     void renderGrid();
     void debugCellText(Camera2D camera, std::function<std::string(FluidGrid&, int, int)> callback);
+
+private:
+    void drawCells();
+    void drawVelX();
+    void drawVelY();
 };

@@ -1,112 +1,101 @@
 #include "include/FluidGrid.hpp"
 #include <random>
 
-FluidGrid::FluidGrid(int cellCountX, int cellCountY, float cellSize)
-    : cellCountX(cellCountX), cellCountY(cellCountY), cellSize(cellSize),
-      velX(cellCountX + 1, std::vector<float>(cellCountY, 0.f)),
-      velY(cellCountX, std::vector<float>(cellCountY + 1, 0.f)),
-      solidCellMap(cellCountX, std::vector<bool>(cellCountY, false)),
-      pressureMap(cellCountX, std::vector<float>(cellCountY, 0.f)) {
+FluidGrid::FluidGrid(int cellCountX, int cellCountY, FluidConfig config)
+    : cellCountX(cellCountX), cellCountY(cellCountY), config(config),
+      velX((cellCountX + 1) * cellCountY, 0.f),
+      velY(cellCountX * (cellCountY + 1), 0.f),
+      pressure(cellCountX * cellCountY, 0.f),
+      solids(cellCountX * cellCountY, false) {
+
     for (int x = 0; x < cellCountX; x++) {
-        solidCellMap[x][0] = true;
-        solidCellMap[x][cellCountY - 1] = true;
+        solids[idx(x, 0)] = true;
+        solids[idx(x, cellCountY - 1)] = true;
     }
     for (int y = 0; y < cellCountY; y++) {
-        solidCellMap[0][y] = true;
-        solidCellMap[cellCountX - 1][y] = true;
+        solids[idx(0, y)] = true;
+        solids[idx(cellCountX - 1, y)] = true;
     }
     randomizeVelXY();
+}
+
+bool FluidGrid::isSolid(int x, int y) const {
+    if (x < 0 || x >= cellCountX || y < 0 || y >= cellCountY) return true;
+    return solids[idx(x, y)];
+}
+
+float FluidGrid::getPressure(int x, int y) const {
+    if (x < 0 || x >= cellCountX || y < 0 || y >= cellCountY) return 0.0f;
+    return pressure[idx(x, y)];
 }
 
 void FluidGrid::randomizeVelXY() {
     std::mt19937 rng(std::random_device{}());
     std::uniform_real_distribution<float> dist(-1.f, 1.f);
-
-    for (auto& row : velX)
-        for (auto& v : row)
-            v = dist(rng);
-
-    for (auto& row : velY)
-        for (auto& v : row)
-            v = dist(rng);
+    for (float& v : velX) v = dist(rng);
+    for (float& v : velY) v = dist(rng);
 }
 
-float FluidGrid::getPressure(int x, int y) {
-    bool outOfBounds = x < 0 || x >= cellCountX || y < 0 || y >= cellCountY;
-    return outOfBounds ? 0 : pressureMap[x][y];
-}
+float FluidGrid::solvePressureAtCell(int x, int y) {
+    if (isSolid(x, y)) return 0.f;
 
-bool FluidGrid::isSolid(int x, int y) {
-    bool outOfBounds = x < 0 || x >= cellCountX || y < 0 || y >= cellCountY;
-    return outOfBounds || solidCellMap[x][y];
-}
+    int flowT = !isSolid(x, y + 1);
+    int flowB = !isSolid(x, y - 1);
+    int flowL = !isSolid(x - 1, y);
+    int flowR = !isSolid(x + 1, y);
+    int n = flowT + flowB + flowL + flowR;
+    if (n == 0) return 0.f;
 
-float FluidGrid::pressureSolveCell(int x, int y) {
-    int flowTop = !isSolid(x, y + 1);
-    int flowLeft = !isSolid(x - 1, y);
-    int flowRight = !isSolid(x + 1, y);
-    int flowBottom = !isSolid(x, y - 1);
-    int fluidEdgeCount = flowLeft + flowRight + flowTop + flowBottom;
-    if (isSolid(x, y) || fluidEdgeCount == 0) return 0.f;
+    float delVelocitySum = (velX[idxX(x + 1, y)] - velX[idxX(x, y)] + velY[idxY(x, y + 1)] - velY[idxY(x, y)]);
+    float pSum = (flowR ? getPressure(x + 1, y) : 0) +
+                 (flowL ? getPressure(x - 1, y) : 0) +
+                 (flowT ? getPressure(x, y + 1) : 0) +
+                 (flowB ? getPressure(x, y - 1) : 0);
 
-    float pressureTop = getPressure(x, y+1);
-    float pressureLeft = getPressure(x-1, y);
-    float pressureRight = getPressure(x+1, y);
-    float pressureBottom = getPressure(x, y-1);
-    float velocityTop = velY[x][y+1];
-    float velocityLeft = velX[x][y];
-    float velocityRight = velX[x+1][y];
-    float velocityBottom = velY[x][y];
-
-    float pressureSum = pressureRight + pressureLeft + pressureTop + pressureBottom;
-    float deltaVelocitySum = velocityRight - velocityLeft + velocityTop - velocityBottom;
-    return (pressureSum - density * cellSize * deltaVelocitySum / deltaTime) / fluidEdgeCount;
+    return (pSum - config.density * config.cellSize * delVelocitySum / config.deltaTime) / n;
 }
 
 void FluidGrid::solvePressure() {
-    for (int iteration = 0; iteration < 40; iteration++) {
+    for (int iter = 0; iter < config.pressureIterations; iter++) {
         for (int x = 0; x < cellCountX; x++) {
             for (int y = 0; y < cellCountY; y++) {
-                pressureMap[x][y] = pressureSolveCell(x, y);
+                pressure[idx(x, y)] = solvePressureAtCell(x, y);
             }
         }
     }
 }
 
 void FluidGrid::updateVelocities() {
-    const float K = deltaTime / (density * cellSize);
-    for (int x = 0; x < velX.size(); x++) {
-        for (int y = 0; y < velX[0].size(); y++) {
+    const float K = config.deltaTime / (config.density * config.cellSize);
+
+    for (int x = 0; x <= cellCountX; x++) {
+        for (int y = 0; y < cellCountY; y++) {
             if (isSolid(x, y) || isSolid(x - 1, y)) {
-                velX[x][y] = 0;
-                continue;
+                velX[idxX(x, y)] = 0;
+            } else {
+                velX[idxX(x, y)] -= K * (getPressure(x, y) - getPressure(x - 1, y));
             }
-            float pressureRight = getPressure(x, y);
-            float pressureLeft = getPressure(x - 1, y);
-            velX[x][y] -= K * (pressureRight - pressureLeft);
         }
     }
 
-    for (int x = 0; x < velY.size(); x++) {
-        for (int y = 0; y < velY[0].size(); y++) {
+    for (int x = 0; x < cellCountX; x++) {
+        for (int y = 0; y <= cellCountY; y++) {
             if (isSolid(x, y) || isSolid(x, y - 1)) {
-                velY[x][y] = 0;
-                continue;
+                velY[idxY(x, y)] = 0;
+            } else {
+                velY[idxY(x, y)] -= K * (getPressure(x, y) - getPressure(x, y - 1));
             }
-            float pressureTop = getPressure(x, y);
-            float pressureBottom = getPressure(x, y - 1);
-            velY[x][y] -= K * (pressureTop - pressureBottom);
         }
     }
 }
 
-float FluidGrid::calculateDivVelocityAtCell(int x, int y) {
-    float top = velY[x][y+1];
-    float bottom = velY[x][y];
-    float left = velX[x][y];
-    float right = velX[x+1][y];
-    float gradX = (right - left) / cellSize;
-    float gradY = (top - bottom) / cellSize;
-    float div = gradX + gradY;
+float FluidGrid::calculateDivVelocityAtCell(int x, int y) const {
+    if (isSolid(x, y)) return 0.0f;
+    float div = (velX[idxX(x + 1, y)] - velX[idxX(x, y)] +
+                 velY[idxY(x, y + 1)] - velY[idxY(x, y)]) / config.cellSize;
     return div;
+}
+
+float FluidGrid::bilinearSample(const std::vector<float>& field, int resX, int resY, float cellSize, Vector2 worldPos) {
+    return 0.0f;
 }

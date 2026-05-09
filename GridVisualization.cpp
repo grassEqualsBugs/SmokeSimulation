@@ -1,72 +1,91 @@
 #include "include/GridVisualization.hpp"
+#include "include/RaylibUtils.hpp"
 #include "include/rlgl.h"
 #include "include/raymath.h"
 #include <cmath>
 
+using namespace RaylibUtils;
+
 GridVisualization::GridVisualization(FluidGrid& fluidGrid)
     : fluidGrid(fluidGrid) {
-    cellDisplaySize = Vector2Scale(Vector2One(), fluidGrid.cellSize * (1 - cellBorderThickness));
-    boundsSize = Vector2Scale((Vector2){(float)fluidGrid.cellCountX, (float)fluidGrid.cellCountY}, (float)fluidGrid.cellSize);
+    const float h = fluidGrid.config.cellSize;
+    cellDisplaySize = Vector2Scale(Vector2One(), h * (1.0f - cellBorderThickness));
+    boundsSize = (Vector2){ (float)fluidGrid.cellCountX * h, (float)fluidGrid.cellCountY * h };
     bottomLeft = Vector2Scale(boundsSize, -0.5f);
-    halfCellSize = fluidGrid.cellSize * 0.5f;
+    halfCellSize = h * 0.5f;
 }
 
-void GridVisualization::DrawOutlinedText(const char *text, int posX, int posY, int fontSize, Color color, int outlineSize, Color outlineColor) {
-    DrawText(text, posX - outlineSize, posY - outlineSize, fontSize, outlineColor);
-    DrawText(text, posX + outlineSize, posY - outlineSize, fontSize, outlineColor);
-    DrawText(text, posX - outlineSize, posY + outlineSize, fontSize, outlineColor);
-    DrawText(text, posX + outlineSize, posY + outlineSize, fontSize, outlineColor);
-    DrawText(text, posX, posY, fontSize, color);
+Vector2 GridVisualization::cellCenter(int x, int y) const {
+    const float h = fluidGrid.config.cellSize;
+    return Vector2Add(bottomLeft, Vector2Scale((Vector2){x + 0.5f, y + 0.5f}, h));
 }
 
-Vector2 GridVisualization::cellCenter(int x, int y) {
-    return Vector2Add(bottomLeft, Vector2Scale((Vector2){x + 0.5f, y + 0.5f}, (float)fluidGrid.cellSize));
+Vector2 GridVisualization::cellBottomLeft(int x, int y) const {
+    const float h = fluidGrid.config.cellSize;
+    return Vector2Add(bottomLeft, Vector2Scale((Vector2){(float)x, (float)y}, h));
 }
 
-Vector2 GridVisualization::cellBottomLeft(int x, int y) {
-    return Vector2Add(bottomLeft, Vector2Scale((Vector2){(float)x, (float)y}, (float)fluidGrid.cellSize));
-}
-
-Vector2 GridVisualization::leftEdgeCenter(int x, int y) {
+Vector2 GridVisualization::leftEdgeCenter(int x, int y) const {
     return Vector2Subtract(cellCenter(x, y), (Vector2){halfCellSize, 0.0f});
 }
 
-Vector2 GridVisualization::bottomEdgeCenter(int x, int y) {
+Vector2 GridVisualization::bottomEdgeCenter(int x, int y) const {
     return Vector2Subtract(cellCenter(x, y), (Vector2){0.0f, halfCellSize});
 }
 
 void GridVisualization::renderGrid() {
+    drawCells();
+    drawVelX();
+    drawVelY();
+}
+
+void GridVisualization::drawCells() {
     for (int x = 0; x < fluidGrid.cellCountX; x++) {
         for (int y = 0; y < fluidGrid.cellCountY; y++) {
             Vector2 center = cellCenter(x, y);
             Vector2 offset = Vector2Scale(cellDisplaySize, 0.5f);
             Vector2 pos = Vector2Subtract(center, offset);
-            Color col = fluidGrid.isSolid(x,y) ? (Color){40, 40, 40, 255} : DARKGRAY;
+            
+            Color col;
+            if (fluidGrid.isSolid(x, y)) {
+                col = (Color){40, 40, 40, 255};
+            } else {
+                float div = fluidGrid.calculateDivVelocityAtCell(x, y);
+                float t = fminf(fabsf(div) / 5.0f, 1.0f);
+                Color target = (div < 0) ? Color{245, 66, 66, 255} : Color{66, 135, 245, 255};
+                col = Vec4ToColor(Vector4Lerp(ColorToVec4(DARKGRAY), ColorToVec4(target), t));
+            }
             DrawRectangleV(pos, cellDisplaySize, col);
         }
     }
+}
 
-    for (int x = 0; x < (int)fluidGrid.velX.size(); x++) {
-        for (int y = 0; y < (int)fluidGrid.velX[0].size(); y++) {
-            float val = fluidGrid.velX[x][y] * halfCellSize;
+void GridVisualization::drawVelX() {
+    for (int x = 0; x <= fluidGrid.cellCountX; x++) {
+        for (int y = 0; y < fluidGrid.cellCountY; y++) {
+            float val = fluidGrid.velX[fluidGrid.idxX(x, y)] * halfCellSize;
             float width = fabsf(val);
             float height = halfCellSize * velocityRectangleThickness;
             Vector2 pos = leftEdgeCenter(x, y);
             pos.y -= height / 2.0f;
             if (val < 0) pos.x += val;
-            DrawRectangleV(pos, (Vector2){width, height}, DARKBLUE);
+            DrawRectangleV(pos, (Vector2){width, height}, RAYWHITE);
+            DrawRectangleLinesEx((Rectangle){pos.x, pos.y, width, height}, 0.01f, BLACK);
         }
     }
+}
 
-    for (int x = 0; x < (int)fluidGrid.velY.size(); x++) {
-        for (int y = 0; y < (int)fluidGrid.velY[0].size(); y++) {
-            float val = fluidGrid.velY[x][y] * halfCellSize;
+void GridVisualization::drawVelY() {
+    for (int x = 0; x < fluidGrid.cellCountX; x++) {
+        for (int y = 0; y <= fluidGrid.cellCountY; y++) {
+            float val = fluidGrid.velY[fluidGrid.idxY(x, y)] * halfCellSize;
             float height = fabsf(val);
             float width = halfCellSize * velocityRectangleThickness;
             Vector2 pos = bottomEdgeCenter(x, y);
             pos.x -= width / 2.0f;
             if (val < 0) pos.y += val;
-            DrawRectangleV(pos, (Vector2){width, height}, DARKBLUE);
+            DrawRectangleV(pos, (Vector2){width, height}, RAYWHITE);
+            DrawRectangleLinesEx((Rectangle){pos.x, pos.y, width, height}, 0.01f, BLACK);
         }
     }
 }
@@ -80,8 +99,8 @@ void GridVisualization::debugCellText(Camera2D camera, std::function<std::string
 
             std::string text = callback(fluidGrid, x, y);
             int fontSize = 25;
-            float textLength = (float)MeasureText(text.c_str(), fontSize);
-            DrawOutlinedText(text.c_str(), (int)(screenPos.x - textLength / 2.f), (int)(screenPos.y - fontSize / 2.f), fontSize, WHITE, 3, BLACK);
+            float textLen = (float)MeasureText(text.c_str(), fontSize);
+            DrawOutlinedText(text.c_str(), (int)(screenPos.x - textLen / 2.0f), (int)(screenPos.y - fontSize / 2.0f), fontSize, WHITE, 3, BLACK);
         }
     }
 }

@@ -1,27 +1,40 @@
 #pragma once
 #include <vector>
+#include "raylib.h"
+
+struct FluidConfig {
+    float cellSize = 1.0f;
+    float density = 1.0f;
+    float deltaTime = 1.0f / 60.0f;
+    int pressureIterations = 10;
+};
 
 class FluidGrid {
 public:
-    int cellCountX;
-    int cellCountY;
-    float cellSize;
-    std::vector<std::vector<float>> velX;
-    std::vector<std::vector<float>> velY;
+    const int cellCountX;
+    const int cellCountY;
+    FluidConfig config;
 
-    std::vector<std::vector<bool>> solidCellMap;
-    bool isSolid(int x, int y);
+    std::vector<float> velX; // (cellCountX + 1) * cellCountY
+    std::vector<float> velY; // cellCountX * (cellCountY + 1)
+    std::vector<float> pressure; // cellCountX * cellCountY
+    std::vector<bool> solids; // cellCountX * cellCountY
 
-    float deltaTime = 1 / 60.f;
-    float density = 1;
+    FluidGrid(int cellCountX, int cellCountY, FluidConfig config);
 
-    std::vector<std::vector<float>> pressureMap;
-    float getPressure(int x, int y);
-    float pressureSolveCell(int x, int y);
-    void solvePressure();
-    void updateVelocities();
+    // Coordinate helpers
+    inline int idx(int x, int y) const { return y * cellCountX + x; }
+    inline int idxX(int x, int y) const { return y * (cellCountX + 1) + x; }
+    inline int idxY(int x, int y) const { return y * cellCountX + x; }
 
-    FluidGrid(int cellCountX, int cellCountY, float cellSize);
+    bool isSolid(int x, int y) const;
+    float getPressure(int x, int y) const;
+
     void randomizeVelXY();
-    float calculateDivVelocityAtCell(int x, int y);
+    void solvePressure();
+    float solvePressureAtCell(int x, int y);
+    void updateVelocities();
+    float calculateDivVelocityAtCell(int x, int y) const;
+
+    static float bilinearSample(const std::vector<float>& field, int resX, int resY, float cellSize, Vector2 worldPos);
 };
