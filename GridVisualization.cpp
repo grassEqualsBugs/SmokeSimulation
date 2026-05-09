@@ -41,7 +41,8 @@ void GridVisualization::renderGrid() {
             Vector2 center = cellCenter(x, y);
             Vector2 offset = Vector2Scale(cellDisplaySize, 0.5f);
             Vector2 pos = Vector2Subtract(center, offset);
-            DrawRectangleV(pos, cellDisplaySize, DARKGRAY);
+            Color col = fluidGrid.isSolid(x,y) ? (Color){40, 40, 40, 255} : DARKGRAY;
+            DrawRectangleV(pos, cellDisplaySize, col);
         }
     }
 

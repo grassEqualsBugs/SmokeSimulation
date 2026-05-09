@@ -9,12 +9,15 @@ public:
     std::vector<std::vector<float>> velX;
     std::vector<std::vector<float>> velY;
 
+    std::vector<std::vector<bool>> solidCellMap;
+    bool isSolid(int x, int y);
+
     float deltaTime = 1 / 60.f;
     float density = 1;
 
     std::vector<std::vector<float>> pressureMap;
     float getPressure(int x, int y);
-    void pressureSolveCell(int x, int y);
+    float pressureSolveCell(int x, int y);
     void solvePressure();
     void updateVelocities();
 
