@@ -45,7 +45,7 @@ void GridVisualization::drawCells() {
             Vector2 center = cellCenter(x, y);
             Vector2 offset = Vector2Scale(cellDisplaySize, 0.5f);
             Vector2 pos = Vector2Subtract(center, offset);
-            
+
             Color col;
             if (fluidGrid.isSolid(x, y)) {
                 col = (Color){40, 40, 40, 255};
@@ -90,7 +90,7 @@ void GridVisualization::drawVelY() {
     }
 }
 
-void GridVisualization::debugCellText(Camera2D camera, std::function<std::string(FluidGrid&, int, int)> callback) {
+void GridVisualization::drawDebugCellText(Camera2D camera, std::function<std::string(FluidGrid&, int, int)> callback) {
     for (int x = 0; x < fluidGrid.cellCountX; x++) {
         for (int y = 0; y < fluidGrid.cellCountY; y++) {
             Vector2 center = cellCenter(x, y);

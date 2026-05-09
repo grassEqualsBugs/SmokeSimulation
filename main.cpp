@@ -2,6 +2,8 @@
 #include "include/rlgl.h"
 #include "include/FluidGrid.hpp"
 #include "include/GridVisualization.hpp"
+#include "include/VelocityBrush.hpp"
+#include <iostream>
 
 const int WINDOW_WIDTH = 1600;
 const int WINDOW_HEIGHT = 900;
@@ -18,18 +20,23 @@ int main() {
 
     FluidConfig config;
     config.cellSize = 0.5f;
-    config.pressureIterations = 1;
+    config.pressureIterations = 10;
 
     FluidGrid fluidGrid(16, 9, config);
     GridVisualization vis(fluidGrid);
+    VelocityBrush brush(fluidGrid, 0.5f);
+
+    bool isSolverOn = false;
 
     while (!WindowShouldClose()) {
-        // Key inputs for debugging
-        if (IsKeyPressed(KEY_SPACE)) {
-            fluidGrid.randomizeVelXY();
-        }
-        fluidGrid.solvePressure();
-        fluidGrid.updateVelocities();
+        // Key Inputs
+        if (IsKeyPressed(KEY_R)) fluidGrid.reset();
+        if (IsKeyPressed(KEY_S)) isSolverOn = !isSolverOn;
+
+        // Updating
+        brush.update(camera);
+        std::cout << isSolverOn << "\n";
+        if (isSolverOn) fluidGrid.update();
 
         // Drawing
         BeginDrawing();
@@ -40,10 +47,11 @@ int main() {
             rlPushMatrix();
                 rlScalef(1.0f, -1.0f, 1.0f);
                 vis.renderGrid();
+                brush.render(camera);
             rlPopMatrix();
         EndMode2D();
 
-        // vis.debugCellText(camera, [](FluidGrid& grid, int x, int y) {
+        // vis.drawDebugCellText(camera, [](FluidGrid& grid, int x, int y) {
         //     return std::string(TextFormat("%.2f", grid.calculateDivVelocityAtCell(x, y)));
         // });
 

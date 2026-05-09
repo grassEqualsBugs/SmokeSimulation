@@ -31,11 +31,13 @@ public:
     float getPressure(int x, int y) const;
 
     void randomizeVelXY();
+    void reset();
 
     void solvePressure();
     float solvePressureAtCell(int x, int y);
     void updateVelocities();
     float calculateDivVelocityAtCell(int x, int y) const;
+    void update();
 
     static float bilinearSample(const std::vector<float>& edgeValues, Vector2 edgeValueDimensions, float cellSize, Vector2 worldPos);
     Vector2 getVelocityAtWorldPos(Vector2 worldPos);

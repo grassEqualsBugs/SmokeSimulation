@@ -22,7 +22,7 @@ public:
     Vector2 bottomEdgeCenter(int x, int y) const;
 
     void renderGrid();
-    void debugCellText(Camera2D camera, std::function<std::string(FluidGrid&, int, int)> callback);
+    void drawDebugCellText(Camera2D camera, std::function<std::string(FluidGrid&, int, int)> callback);
 
 private:
     void drawCells();

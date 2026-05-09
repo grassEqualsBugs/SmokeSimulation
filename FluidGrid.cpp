@@ -32,6 +32,12 @@ float FluidGrid::getPressure(int x, int y) const {
     return pressure[idx(x, y)];
 }
 
+void FluidGrid::reset() {
+    std::fill(velX.begin(), velX.end(), 0.f);
+    std::fill(velY.begin(), velY.end(), 0.f);
+    std::fill(pressure.begin(), pressure.end(), 0.f);
+}
+
 void FluidGrid::randomizeVelXY() {
     std::mt19937 rng(std::random_device{}());
     std::uniform_real_distribution<float> dist(-1.f, 1.f);
@@ -59,11 +65,9 @@ float FluidGrid::solvePressureAtCell(int x, int y) {
 }
 
 void FluidGrid::solvePressure() {
-    for (int iter = 0; iter < config.pressureIterations; iter++) {
-        for (int x = 0; x < cellCountX; x++) {
-            for (int y = 0; y < cellCountY; y++) {
-                pressure[idx(x, y)] = solvePressureAtCell(x, y);
-            }
+    for (int x = 0; x < cellCountX; x++) {
+        for (int y = 0; y < cellCountY; y++) {
+            pressure[idx(x, y)] = solvePressureAtCell(x, y);
         }
     }
 }
@@ -90,6 +94,13 @@ void FluidGrid::updateVelocities() {
             }
         }
     }
+}
+
+void FluidGrid::update() {
+    for (int iter = 0; iter < config.pressureIterations; iter++) {
+        solvePressure();
+    }
+    updateVelocities();
 }
 
 float FluidGrid::calculateDivVelocityAtCell(int x, int y) const {
