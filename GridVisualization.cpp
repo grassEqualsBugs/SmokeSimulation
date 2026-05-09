@@ -41,7 +41,7 @@ void GridVisualization::renderGrid() {
             Vector2 center = cellCenter(x, y);
             Vector2 offset = Vector2Scale(cellDisplaySize, 0.5f);
             Vector2 pos = Vector2Subtract(center, offset);
-            DrawRectangle((int)pos.x, (int)pos.y, (int)cellDisplaySize.x, (int)cellDisplaySize.y, DARKGRAY);
+            DrawRectangleV(pos, cellDisplaySize, DARKGRAY);
         }
     }
 
@@ -53,7 +53,7 @@ void GridVisualization::renderGrid() {
             Vector2 pos = leftEdgeCenter(x, y);
             pos.y -= height / 2.0f;
             if (val < 0) pos.x += val;
-            DrawRectangleV(pos, (Vector2){width, height}, BLUE);
+            DrawRectangleV(pos, (Vector2){width, height}, DARKBLUE);
         }
     }
 
@@ -65,7 +65,7 @@ void GridVisualization::renderGrid() {
             Vector2 pos = bottomEdgeCenter(x, y);
             pos.x -= width / 2.0f;
             if (val < 0) pos.y += val;
-            DrawRectangleV(pos, (Vector2){width, height}, RED);
+            DrawRectangleV(pos, (Vector2){width, height}, DARKBLUE);
         }
     }
 }

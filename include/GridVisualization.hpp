@@ -10,7 +10,7 @@ public:
     Vector2 cellDisplaySize;
     Vector2 boundsSize;
     Vector2 bottomLeft;
-    float cellBorderThickness = 0.03;
+    float cellBorderThickness = 0.03f;
     float velocityRectangleThickness = 0.2f;
     float halfCellSize;
 

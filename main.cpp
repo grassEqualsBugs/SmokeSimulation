@@ -15,13 +15,15 @@ int main() {
 
 	Camera2D camera = {0};
 	camera.offset = (Vector2){WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT / 2.0f};
-	camera.zoom = 1.f;
+	camera.zoom = 200.f;
 
-	FluidGrid fluidGrid(5, 3, 150);
+	FluidGrid fluidGrid(10, 6, 0.5f);
 	GridVisualization vis(fluidGrid);
 
 	while (!WindowShouldClose()) {
 	    if (IsKeyPressed(KEY_SPACE)) fluidGrid.randomizeVelXY();
+		fluidGrid.solvePressure();
+		fluidGrid.updateVelocities();
 
 		BeginDrawing();
 		ClearBackground(BLACK);
@@ -32,11 +34,9 @@ int main() {
 		vis.renderGrid();
 		rlPopMatrix();
 		EndMode2D();
-		
 		vis.debugCellText(camera, [](FluidGrid& grid, int x, int y) {
-			return std::to_string(grid.calculateDivVelocityAtCell(x, y));
+			return std::string(TextFormat("%.2f", grid.calculateDivVelocityAtCell(x, y)));
 		});
-
 		rlSetCullFace(RL_CULL_FACE_BACK);
 		DrawFPS(10, 10);
 		EndDrawing();
