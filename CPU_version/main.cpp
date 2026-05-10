@@ -18,11 +18,11 @@ int main() {
     camera.zoom = 100.0f;
 
     FluidConfig config;
-    config.cellSize = 0.2f;
-    config.pressureIterations = 20;
+    config.cellSize = 0.1f;
+    config.pressureIterations = 40;
     config.deltaTime = 1 / 30.f;
 
-    FluidGrid fluidGrid(80, 45, config);
+    FluidGrid fluidGrid(160, 90, config);
     GridVisualization vis(fluidGrid, 1, GridVisMode::SMOKE);
     Brush brush(fluidGrid, 0.6f, 2.0f);
 
