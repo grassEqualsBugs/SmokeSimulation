@@ -7,6 +7,8 @@ FluidGrid::FluidGrid(int cellCountX, int cellCountY, FluidConfig config)
     : cellCountX(cellCountX), cellCountY(cellCountY), config(config),
       velX((cellCountX + 1) * cellCountY, 0.f),
       velY(cellCountX * (cellCountY + 1), 0.f),
+      velX_temp((cellCountX + 1) * cellCountY, 0.f),
+      velY_temp(cellCountX * (cellCountY + 1), 0.f),
       pressure(cellCountX * cellCountY, 0.f),
       solids(cellCountX * cellCountY, false) {
 
@@ -19,6 +21,26 @@ FluidGrid::FluidGrid(int cellCountX, int cellCountY, FluidConfig config)
         solids[idx(cellCountX - 1, y)] = true;
     }
     // randomizeVelXY();
+}
+
+Vector2 FluidGrid::getBottomLeft() const {
+    return (Vector2){ -cellCountX * config.cellSize * 0.5f, -cellCountY * config.cellSize * 0.5f };
+}
+
+Vector2 FluidGrid::cellCenter(int x, int y) const {
+    return Vector2Add(getBottomLeft(), Vector2Scale((Vector2){x + 0.5f, y + 0.5f}, config.cellSize));
+}
+
+Vector2 FluidGrid::cellBottomLeft(int x, int y) const {
+    return Vector2Add(getBottomLeft(), Vector2Scale((Vector2){(float)x, (float)y}, config.cellSize));
+}
+
+Vector2 FluidGrid::leftEdgeCenter(int x, int y) const {
+    return Vector2Subtract(cellCenter(x, y), (Vector2){config.cellSize * 0.5f, 0.0f});
+}
+
+Vector2 FluidGrid::bottomEdgeCenter(int x, int y) const {
+    return Vector2Subtract(cellCenter(x, y), (Vector2){0.0f, config.cellSize * 0.5f});
 }
 
 bool FluidGrid::isSolid(int x, int y) const {
@@ -63,12 +85,40 @@ float FluidGrid::solvePressureAtCell(int x, int y) {
     return (pSum - config.density * config.cellSize * delVelocitySum / config.deltaTime) / n;
 }
 
-void FluidGrid::solvePressure() {
+void FluidGrid::solvePressure(float weightSOR) {
     for (int x = 0; x < cellCountX; x++) {
         for (int y = 0; y < cellCountY; y++) {
-            pressure[idx(x, y)] = solvePressureAtCell(x, y);
+            float pressureNew = solvePressureAtCell(x, y);
+            float pressureOld = pressure[idx(x, y)];
+            // Successive over-relaxation
+            pressure[idx(x, y)] = pressureOld + (pressureNew - pressureOld) * weightSOR;
         }
     }
+}
+
+void FluidGrid::advectVelocities() {
+    for (int x = 0; x <= cellCountX; x++) {
+        for (int y = 0; y < cellCountY; y++) {
+            if (isSolid(x - 1, y) || isSolid(x, y)) continue;
+            Vector2 pos = leftEdgeCenter(x, y);
+            Vector2 vel = getVelocityAtWorldPos(pos);
+            Vector2 posPrev = Vector2Subtract(pos, Vector2Scale(vel, config.deltaTime));
+            velX_temp[idxX(x, y)] = getVelocityAtWorldPos(posPrev).x;
+        }
+    }
+
+    for (int x = 0; x < cellCountX; x++) {
+        for (int y = 0; y <= cellCountY; y++) {
+            if (isSolid(x, y - 1) || isSolid(x, y)) continue;
+            Vector2 pos = bottomEdgeCenter(x, y);
+            Vector2 vel = getVelocityAtWorldPos(pos);
+            Vector2 posPrev = Vector2Subtract(pos, Vector2Scale(vel, config.deltaTime));
+            velY_temp[idxY(x, y)] = getVelocityAtWorldPos(posPrev).y;
+        }
+    }
+
+    velX = velX_temp;
+    velY = velY_temp;
 }
 
 void FluidGrid::updateVelocities() {
@@ -96,9 +146,9 @@ void FluidGrid::updateVelocities() {
 }
 
 void FluidGrid::update() {
-    for (int iter = 0; iter < config.pressureIterations; iter++) {
-        solvePressure();
-    }
+    advectVelocities();
+    for (int iter = 0; iter < config.pressureIterations; iter++)
+        solvePressure(1.7);
     updateVelocities();
 }
 
@@ -113,6 +163,19 @@ Vector2 FluidGrid::getVelocityAtWorldPos(Vector2 worldPos) {
     float velX = FluidGrid::bilinearSample(FluidGrid::velX, (Vector2){cellCountX + 1.f, cellCountY + 0.f}, config.cellSize, worldPos);
     float velY = FluidGrid::bilinearSample(FluidGrid::velY, (Vector2){cellCountX + 0.f, cellCountY + 1.f}, config.cellSize, worldPos);
     return (Vector2){velX, velY};
+}
+
+int FluidGrid::calculateDivergenceError() {
+    float totalDivergenceError = 0;
+    for (int x = 0; x < cellCountX; x++) {
+        for (int y = 0; y < cellCountY; y++) {
+            float divergence = calculateDivVelocityAtCell(x, y);
+            totalDivergenceError += abs(divergence);
+        }
+    }
+    const int displayFactor = 10000;
+    const int cellCount = cellCountX * cellCountY;
+    return (int)(totalDivergenceError / cellCount * displayFactor);
 }
 
 float FluidGrid::bilinearSample(const std::vector<float>& edgeValues, Vector2 edgeValueDimensions, float cellSize, Vector2 worldPos) {

@@ -11,31 +11,12 @@ GridVisualization::GridVisualization(FluidGrid& fluidGrid, int interpolatedVeloc
     const float h = fluidGrid.config.cellSize;
     cellDisplaySize = Vector2Scale(Vector2One(), h * (1.0f - cellBorderThickness));
     boundsSize = (Vector2){ (float)fluidGrid.cellCountX * h, (float)fluidGrid.cellCountY * h };
-    bottomLeft = Vector2Scale(boundsSize, -0.5f);
     halfCellSize = h * 0.5f;
-}
-
-Vector2 GridVisualization::cellCenter(int x, int y) const {
-    const float h = fluidGrid.config.cellSize;
-    return Vector2Add(bottomLeft, Vector2Scale((Vector2){x + 0.5f, y + 0.5f}, h));
-}
-
-Vector2 GridVisualization::cellBottomLeft(int x, int y) const {
-    const float h = fluidGrid.config.cellSize;
-    return Vector2Add(bottomLeft, Vector2Scale((Vector2){(float)x, (float)y}, h));
-}
-
-Vector2 GridVisualization::leftEdgeCenter(int x, int y) const {
-    return Vector2Subtract(cellCenter(x, y), (Vector2){halfCellSize, 0.0f});
-}
-
-Vector2 GridVisualization::bottomEdgeCenter(int x, int y) const {
-    return Vector2Subtract(cellCenter(x, y), (Vector2){0.0f, halfCellSize});
 }
 
 void GridVisualization::renderGrid() {
     drawCells();
-    drawInterpolatedVelocities();
+    // drawInterpolatedVelocities();
     // drawVelX();
     // drawVelY();
 }
@@ -43,7 +24,7 @@ void GridVisualization::renderGrid() {
 void GridVisualization::drawCells() {
     for (int x = 0; x < fluidGrid.cellCountX; x++) {
         for (int y = 0; y < fluidGrid.cellCountY; y++) {
-            Vector2 center = cellCenter(x, y);
+            Vector2 center = fluidGrid.cellCenter(x, y);
             Vector2 offset = Vector2Scale(cellDisplaySize, 0.5f);
             Vector2 pos = Vector2Subtract(center, offset);
 
@@ -67,7 +48,7 @@ void GridVisualization::drawVelX() {
             float val = fluidGrid.velX[fluidGrid.idxX(x, y)];
             if (fabsf(val) < 0.001f) continue;
 
-            Vector2 start = leftEdgeCenter(x, y);
+            Vector2 start = fluidGrid.leftEdgeCenter(x, y);
             Vector2 end = Vector2Add(start, (Vector2){ val * halfCellSize, 0.0f });
             DrawArrow(start, end, RAYWHITE, velocityArrowThickness);
         }
@@ -80,7 +61,7 @@ void GridVisualization::drawVelY() {
             float val = fluidGrid.velY[fluidGrid.idxY(x, y)];
             if (fabsf(val) < 0.001f) continue;
 
-            Vector2 start = bottomEdgeCenter(x, y);
+            Vector2 start = fluidGrid.bottomEdgeCenter(x, y);
             Vector2 end = Vector2Add(start, (Vector2){ 0.0f, val * halfCellSize });
             DrawArrow(start, end, RAYWHITE, velocityArrowThickness);
         }
@@ -97,7 +78,7 @@ void GridVisualization::drawInterpolatedVelocities() {
         for (int y = 0; y < fluidGrid.cellCountY; y++) {
             if (fluidGrid.isSolid(x, y)) continue;
 
-            Vector2 bl = cellBottomLeft(x, y);
+            Vector2 bl = fluidGrid.cellBottomLeft(x, y);
 
             for (int i = 0; i < interpolatedVelocitiesPerSide; i++) {
                 for (int j = 0; j < interpolatedVelocitiesPerSide; j++) {
@@ -122,7 +103,7 @@ void GridVisualization::drawInterpolatedVelocities() {
 void GridVisualization::drawDebugCellText(Camera2D camera, std::function<std::string(FluidGrid&, int, int)> callback) {
     for (int x = 0; x < fluidGrid.cellCountX; x++) {
         for (int y = 0; y < fluidGrid.cellCountY; y++) {
-            Vector2 center = cellCenter(x, y);
+            Vector2 center = fluidGrid.cellCenter(x, y);
             center.y *= -1.0f;
             Vector2 screenPos = GetWorldToScreen2D(center, camera);
 
