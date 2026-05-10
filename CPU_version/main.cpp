@@ -6,7 +6,7 @@
 
 const int WINDOW_WIDTH = 1600;
 const int WINDOW_HEIGHT = 900;
-const char* WINDOW_TITLE = "Fluid Simulation";
+const char* WINDOW_TITLE = "Smoke Simulation";
 
 int main() {
     SetConfigFlags(FLAG_VSYNC_HINT);
