@@ -11,10 +11,11 @@ public:
     Vector2 boundsSize;
     Vector2 bottomLeft;
     float cellBorderThickness = 0.03f;
-    float velocityRectangleThickness = 0.2f;
-    float halfCellSize;
     float divergenceColorRange = 3.f;
-    int interpolatedVelocitiesPerSide = 0;
+    float interpolatedVelocityArrowThickness = 0.012f;
+    float velocityArrowThickness = 0.02f;
+    float halfCellSize;
+    int interpolatedVelocitiesPerSide;
 
     GridVisualization(FluidGrid& fluidGrid, int interpolatedVelocitiesPerSide);
 

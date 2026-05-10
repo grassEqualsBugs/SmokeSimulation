@@ -35,9 +35,9 @@ Vector2 GridVisualization::bottomEdgeCenter(int x, int y) const {
 
 void GridVisualization::renderGrid() {
     drawCells();
+    drawInterpolatedVelocities();
     // drawVelX();
     // drawVelY();
-    drawInterpolatedVelocities();
 }
 
 void GridVisualization::drawCells() {
@@ -64,14 +64,12 @@ void GridVisualization::drawCells() {
 void GridVisualization::drawVelX() {
     for (int x = 0; x <= fluidGrid.cellCountX; x++) {
         for (int y = 0; y < fluidGrid.cellCountY; y++) {
-            float val = fluidGrid.velX[fluidGrid.idxX(x, y)] * halfCellSize;
-            float width = fabsf(val);
-            float height = halfCellSize * velocityRectangleThickness;
-            Vector2 pos = leftEdgeCenter(x, y);
-            pos.y -= height / 2.0f;
-            if (val < 0) pos.x += val;
-            DrawRectangleV(pos, (Vector2){width, height}, RAYWHITE);
-            DrawRectangleLinesEx((Rectangle){pos.x, pos.y, width, height}, 0.01f, BLACK);
+            float val = fluidGrid.velX[fluidGrid.idxX(x, y)];
+            if (fabsf(val) < 0.001f) continue;
+
+            Vector2 start = leftEdgeCenter(x, y);
+            Vector2 end = Vector2Add(start, (Vector2){ val * halfCellSize, 0.0f });
+            DrawArrow(start, end, RAYWHITE, velocityArrowThickness);
         }
     }
 }
@@ -79,14 +77,12 @@ void GridVisualization::drawVelX() {
 void GridVisualization::drawVelY() {
     for (int x = 0; x < fluidGrid.cellCountX; x++) {
         for (int y = 0; y <= fluidGrid.cellCountY; y++) {
-            float val = fluidGrid.velY[fluidGrid.idxY(x, y)] * halfCellSize;
-            float height = fabsf(val);
-            float width = halfCellSize * velocityRectangleThickness;
-            Vector2 pos = bottomEdgeCenter(x, y);
-            pos.x -= width / 2.0f;
-            if (val < 0) pos.y += val;
-            DrawRectangleV(pos, (Vector2){width, height}, RAYWHITE);
-            DrawRectangleLinesEx((Rectangle){pos.x, pos.y, width, height}, 0.01f, BLACK);
+            float val = fluidGrid.velY[fluidGrid.idxY(x, y)];
+            if (fabsf(val) < 0.001f) continue;
+
+            Vector2 start = bottomEdgeCenter(x, y);
+            Vector2 end = Vector2Add(start, (Vector2){ 0.0f, val * halfCellSize });
+            DrawArrow(start, end, RAYWHITE, velocityArrowThickness);
         }
     }
 }
@@ -115,24 +111,8 @@ void GridVisualization::drawInterpolatedVelocities() {
                     if (speed < 0.001f) continue;
 
                     Vector2 end = Vector2Add(pos, Vector2Scale(vel, subH * 2.f));
-
-                    // Draw the main line (arrow shaft)
                     Color arrowColor = (Color){150, 191, 255, 255};
-                    DrawLineEx(pos, end, 0.012f, arrowColor);
-
-                    // Draw the arrow head
-                    float headSize = 0.33 * Vector2Length(Vector2Subtract(end, pos));
-                    float angle = atan2f(vel.y, vel.x);
-                    Vector2 head1 = {
-                        end.x - headSize * cosf(angle - PI/12),
-                        end.y - headSize * sinf(angle - PI/12)
-                    };
-                    Vector2 head2 = {
-                        end.x - headSize * cosf(angle + PI/12),
-                        end.y - headSize * sinf(angle + PI/12)
-                    };
-                    DrawLineEx(end, head1, 0.008f, arrowColor);
-                    DrawLineEx(end, head2, 0.008f, arrowColor);
+                    DrawArrow(pos, end, arrowColor, interpolatedVelocityArrowThickness);
                 }
             }
         }
