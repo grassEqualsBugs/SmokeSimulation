@@ -1,5 +1,5 @@
 CC = clang++
-CFLAGS = -Wall -Wextra -std=c++17 -O3
+CFLAGS = -Wall -Wextra -std=c++17
 LDFLAGS = -framework Metal -framework MetalKit -framework Cocoa
 
 SRC_DIR = src
@@ -7,7 +7,7 @@ OBJ_DIR = obj
 BIN_DIR = bin
 
 TARGET = $(BIN_DIR)/smoke_gpu
-SOURCES = $(SRC_DIR)/main.mm
+SOURCES = $(SRC_DIR)/main.mm $(SRC_DIR)/Renderer.mm
 OBJECTS = $(SOURCES:$(SRC_DIR)/%.mm=$(OBJ_DIR)/%.o)
 
 SHADERS_SRC = $(SRC_DIR)/Shaders.metal
