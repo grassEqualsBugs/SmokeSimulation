@@ -16,7 +16,7 @@ GridVisualization::GridVisualization(FluidGrid& fluidGrid, int interpolatedVeloc
 
 void GridVisualization::renderGrid() {
     drawCells();
-    drawInterpolatedVelocities();
+    // drawInterpolatedVelocities();
     // drawVelX();
     // drawVelY();
 }
@@ -41,6 +41,10 @@ void GridVisualization::drawCells() {
                 float speedT = fminf(Vector2Length(velocity) / speedVisMax, 1.0f);
                 float hue = (1.0f - speedT) * 218.0f + speedT * 10.0f;
                 col = ColorFromHSV(hue, 0.7f, 0.8f);
+            } else if (visMode == GridVisMode::SMOKE) {
+                float s = fluidGrid.smokeMap[fluidGrid.idx(x, y)];
+                unsigned char val = (unsigned char)(fminf(fminf(s, 1.0f) * 255.0f + (1 - s) * 15, 255.0f));
+                col = (Color){val, val, val, 255};
             }
             DrawRectangleV(pos, cellDisplaySize, col);
         }

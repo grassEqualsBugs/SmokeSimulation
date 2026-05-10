@@ -10,6 +10,8 @@ FluidGrid::FluidGrid(int cellCountX, int cellCountY, FluidConfig config)
       velX_temp((cellCountX + 1) * cellCountY, 0.f),
       velY_temp(cellCountX * (cellCountY + 1), 0.f),
       pressure(cellCountX * cellCountY, 0.f),
+      smokeMap(cellCountX * cellCountY, 0.f),
+      smokeMap_temp(cellCountX * cellCountY, 0.f),
       solids(cellCountX * cellCountY, false) {
 
     for (int x = 0; x < cellCountX; x++) {
@@ -57,6 +59,7 @@ void FluidGrid::reset() {
     std::fill(velX.begin(), velX.end(), 0.f);
     std::fill(velY.begin(), velY.end(), 0.f);
     std::fill(pressure.begin(), pressure.end(), 0.f);
+    std::fill(smokeMap.begin(), smokeMap.end(), 0.f);
 }
 
 void FluidGrid::randomizeVelXY() {
@@ -121,6 +124,20 @@ void FluidGrid::advectVelocities() {
     velY = velY_temp;
 }
 
+void FluidGrid::advectSmoke() {
+    for (int x = 0; x < cellCountX; x++) {
+        for (int y = 0; y < cellCountY; y++) {
+            if (isSolid(x, y)) continue;
+            Vector2 pos = cellCenter(x, y);
+            Vector2 vel = getVelocityAtWorldPos(pos);
+            Vector2 posPrev = Vector2Subtract(pos, Vector2Scale(vel, config.deltaTime));
+            smokeMap_temp[idx(x, y)] = getSmokeAtWorldPos(posPrev);
+        }
+    }
+
+    smokeMap = smokeMap_temp;
+}
+
 void FluidGrid::updateVelocities() {
     const float K = config.deltaTime / (config.density * config.cellSize);
 
@@ -147,6 +164,7 @@ void FluidGrid::updateVelocities() {
 
 void FluidGrid::update() {
     advectVelocities();
+    advectSmoke();
     for (int iter = 0; iter < config.pressureIterations; iter++)
         solvePressure(1.7);
     updateVelocities();
@@ -163,6 +181,10 @@ Vector2 FluidGrid::getVelocityAtWorldPos(Vector2 worldPos) {
     float velX = FluidGrid::bilinearSample(FluidGrid::velX, (Vector2){cellCountX + 1.f, cellCountY + 0.f}, config.cellSize, worldPos);
     float velY = FluidGrid::bilinearSample(FluidGrid::velY, (Vector2){cellCountX + 0.f, cellCountY + 1.f}, config.cellSize, worldPos);
     return (Vector2){velX, velY};
+}
+
+float FluidGrid::getSmokeAtWorldPos(Vector2 worldPos) {
+    return FluidGrid::bilinearSample(smokeMap, (Vector2){(float)cellCountX, (float)cellCountY}, config.cellSize, worldPos);
 }
 
 int FluidGrid::calculateDivergenceError() {

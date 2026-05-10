@@ -6,7 +6,8 @@
 
 enum class GridVisMode {
     DIVERGENCE,
-    SPEED
+    SPEED,
+    SMOKE
 };
 
 class GridVisualization {

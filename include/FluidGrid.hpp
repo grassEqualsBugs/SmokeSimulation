@@ -15,12 +15,15 @@ public:
     const int cellCountY;
     FluidConfig config;
 
+    // Maps
     std::vector<float> velX; // (cellCountX + 1) * cellCountY
     std::vector<float> velY; // cellCountX * (cellCountY + 1)
-    std::vector<float> velX_temp;
-    std::vector<float> velY_temp;
+    std::vector<float> velX_temp; // same as above
+    std::vector<float> velY_temp; // same as above
     std::vector<float> pressure; // cellCountX * cellCountY
     std::vector<bool> solids; // cellCountX * cellCountY
+    std::vector<float> smokeMap;
+    std::vector<float> smokeMap_temp;
 
     FluidGrid(int cellCountX, int cellCountY, FluidConfig config);
 
@@ -42,13 +45,16 @@ public:
     void reset();
     int calculateDivergenceError();
 
+    // Updating / Sim
     void solvePressure(float weightSOR = 1);
     float solvePressureAtCell(int x, int y);
     void updateVelocities();
     void advectVelocities();
+    void advectSmoke();
     float calculateDivVelocityAtCell(int x, int y) const;
     void update();
 
     static float bilinearSample(const std::vector<float>& edgeValues, Vector2 edgeValueDimensions, float cellSize, Vector2 worldPos);
     Vector2 getVelocityAtWorldPos(Vector2 worldPos);
+    float getSmokeAtWorldPos(Vector2 worldPos);
 };
