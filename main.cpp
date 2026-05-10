@@ -22,7 +22,7 @@ int main() {
     config.pressureIterations = 15;
 
     FluidGrid fluidGrid(80, 45, config);
-    GridVisualization vis(fluidGrid, 1);
+    GridVisualization vis(fluidGrid, 1, GridVisMode::SPEED);
     VelocityBrush brush(fluidGrid, 0.5f);
 
     while (!WindowShouldClose()) {
@@ -47,8 +47,8 @@ int main() {
         EndMode2D();
 
         rlSetCullFace(RL_CULL_FACE_BACK);
-        DrawText((std::to_string(GetFPS()) + " FPS").c_str(), 10, 10, 20, (Color){ 0, 228, 48, 255 });
-        DrawText(("ERROR: " + std::to_string(fluidGrid.calculateDivergenceError())).c_str(), 10, 30, 20, (Color){ 0, 228, 48, 255 });
+        DrawText((std::to_string(GetFPS()).c_str()), 10, 10, 20, RAYWHITE);
+        // DrawText(("ERROR: " + std::to_string(fluidGrid.calculateDivergenceError())).c_str(), 10, 30, 20, (Color){ 0, 228, 48, 255 });
         EndDrawing();
     }
 

@@ -6,8 +6,8 @@
 
 using namespace RaylibUtils;
 
-GridVisualization::GridVisualization(FluidGrid& fluidGrid, int interpolatedVelocitiesPerSide)
-    : fluidGrid(fluidGrid), interpolatedVelocitiesPerSide(interpolatedVelocitiesPerSide) {
+GridVisualization::GridVisualization(FluidGrid& fluidGrid, int interpolatedVelocitiesPerSide, GridVisMode visMode)
+    : fluidGrid(fluidGrid), interpolatedVelocitiesPerSide(interpolatedVelocitiesPerSide), visMode(visMode) {
     const float h = fluidGrid.config.cellSize;
     cellDisplaySize = Vector2Scale(Vector2One(), h * (1.0f - cellBorderThickness));
     boundsSize = (Vector2){ (float)fluidGrid.cellCountX * h, (float)fluidGrid.cellCountY * h };
@@ -24,18 +24,23 @@ void GridVisualization::renderGrid() {
 void GridVisualization::drawCells() {
     for (int x = 0; x < fluidGrid.cellCountX; x++) {
         for (int y = 0; y < fluidGrid.cellCountY; y++) {
-            Vector2 center = fluidGrid.cellCenter(x, y);
+            Vector2 cellPos = fluidGrid.cellCenter(x, y);
             Vector2 offset = Vector2Scale(cellDisplaySize, 0.5f);
-            Vector2 pos = Vector2Subtract(center, offset);
+            Vector2 pos = Vector2Subtract(cellPos, offset);
 
             Color col;
             if (fluidGrid.isSolid(x, y)) {
                 col = (Color){10, 10, 10, 255};
-            } else {
+            } else if (visMode == GridVisMode::DIVERGENCE) {
                 float div = fluidGrid.calculateDivVelocityAtCell(x, y);
                 float t = fminf(fabsf(div) / divergenceColorRange, 1.0f);
                 Color target = (div < 0) ? Color{245, 66, 66, 255} : Color{66, 135, 245, 255};
                 col = Vec4ToColor(Vector4Lerp(ColorToVec4(Color{30, 30, 30, 255}), ColorToVec4(target), t));
+            } else if (visMode == GridVisMode::SPEED) {
+                Vector2 velocity = fluidGrid.getVelocityAtWorldPos(cellPos);
+                float speedT = fminf(Vector2Length(velocity) / speedVisMax, 1.0f);
+                float hue = (1.0f - speedT) * 218.0f + speedT * 10.0f;
+                col = ColorFromHSV(hue, 0.7f, 0.8f);
             }
             DrawRectangleV(pos, cellDisplaySize, col);
         }
@@ -92,8 +97,7 @@ void GridVisualization::drawInterpolatedVelocities() {
                     if (speed < 0.001f) continue;
 
                     Vector2 end = Vector2Add(pos, Vector2Scale(vel, subH * 2.f));
-                    Color arrowColor = (Color){150, 191, 255, 255};
-                    DrawArrow(pos, end, arrowColor, interpolatedVelocityArrowThickness);
+                    DrawArrow(pos, end, RAYWHITE, interpolatedVelocityArrowThickness);
                 }
             }
         }
