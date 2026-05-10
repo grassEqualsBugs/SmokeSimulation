@@ -1,7 +1,6 @@
 #include "include/FluidGrid.hpp"
 #include "include/raymath.h"
 #include <random>
-#include <functional>
 #include <algorithm>
 
 FluidGrid::FluidGrid(int cellCountX, int cellCountY, FluidConfig config)
@@ -119,7 +118,7 @@ Vector2 FluidGrid::getVelocityAtWorldPos(Vector2 worldPos) {
 float FluidGrid::bilinearSample(const std::vector<float>& edgeValues, Vector2 edgeValueDimensions, float cellSize, Vector2 worldPos) {
     int edgeCountX = edgeValueDimensions.x;
     int edgeCountY = edgeValueDimensions.y;
-    std::function<int(int,int)> edgeIdx = [edgeCountX](int x, int y) { return edgeCountX * y + x; };
+    auto edgeIdx = [edgeCountX](int x, int y) { return edgeCountX * y + x; };
 
     float width = (edgeCountX - 1) * cellSize;
     float height = (edgeCountY - 1) * cellSize;

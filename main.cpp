@@ -3,7 +3,6 @@
 #include "include/FluidGrid.hpp"
 #include "include/GridVisualization.hpp"
 #include "include/VelocityBrush.hpp"
-#include <iostream>
 
 const int WINDOW_WIDTH = 1600;
 const int WINDOW_HEIGHT = 900;
@@ -23,7 +22,7 @@ int main() {
     config.pressureIterations = 10;
 
     FluidGrid fluidGrid(16, 9, config);
-    GridVisualization vis(fluidGrid);
+    GridVisualization vis(fluidGrid, 4);
     VelocityBrush brush(fluidGrid, 0.5f);
 
     bool isSolverOn = false;
@@ -35,7 +34,6 @@ int main() {
 
         // Updating
         brush.update(camera);
-        std::cout << isSolverOn << "\n";
         if (isSolverOn) fluidGrid.update();
 
         // Drawing

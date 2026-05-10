@@ -13,8 +13,10 @@ public:
     float cellBorderThickness = 0.03f;
     float velocityRectangleThickness = 0.2f;
     float halfCellSize;
+    float divergenceColorRange = 3.f;
+    int interpolatedVelocitiesPerSide = 0;
 
-    GridVisualization(FluidGrid& fluidGrid);
+    GridVisualization(FluidGrid& fluidGrid, int interpolatedVelocitiesPerSide);
 
     Vector2 cellCenter(int x, int y) const;
     Vector2 cellBottomLeft(int x, int y) const;
@@ -28,4 +30,5 @@ private:
     void drawCells();
     void drawVelX();
     void drawVelY();
+    void drawInterpolatedVelocities();
 };
