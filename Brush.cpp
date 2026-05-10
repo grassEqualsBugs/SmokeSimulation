@@ -1,10 +1,10 @@
-#include "include/VelocityBrush.hpp"
+#include "include/Brush.hpp"
 #include "include/raymath.h"
 
-VelocityBrush::VelocityBrush(FluidGrid& grid, float radius)
+Brush::Brush(FluidGrid& grid, float radius)
     : fluidGrid(grid), radius(radius), lastMouseWorldPos({0, 0}), isMousePressed(false) {}
 
-void VelocityBrush::update(Camera2D camera) {
+void Brush::update(Camera2D camera) {
     Vector2 mousePos = GetMousePosition();
     Vector2 mouseWorldPos = GetScreenToWorld2D(mousePos, camera);
     // Since world is flipped in render, we flip it back for logic if needed
@@ -59,7 +59,7 @@ void VelocityBrush::update(Camera2D camera) {
     }
 }
 
-void VelocityBrush::render(Camera2D camera) {
+void Brush::render(Camera2D camera) {
     Vector2 mousePos = GetMousePosition();
     Vector2 mouseWorldPos = GetScreenToWorld2D(mousePos, camera);
 

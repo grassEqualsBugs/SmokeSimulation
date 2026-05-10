@@ -2,12 +2,12 @@
 #include "raylib.h"
 #include "FluidGrid.hpp"
 
-class VelocityBrush {
+class Brush {
 public:
     FluidGrid& fluidGrid;
     float radius;
 
-    VelocityBrush(FluidGrid& grid, float radius);
+    Brush(FluidGrid& grid, float radius);
 
     void update(Camera2D camera);
     void render(Camera2D camera);

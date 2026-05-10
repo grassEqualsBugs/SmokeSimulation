@@ -2,7 +2,7 @@
 #include "include/rlgl.h"
 #include "include/FluidGrid.hpp"
 #include "include/GridVisualization.hpp"
-#include "include/VelocityBrush.hpp"
+#include "include/Brush.hpp"
 
 const int WINDOW_WIDTH = 1600;
 const int WINDOW_HEIGHT = 900;
@@ -24,7 +24,7 @@ int main() {
 
     FluidGrid fluidGrid(80, 45, config);
     GridVisualization vis(fluidGrid, 1, GridVisMode::SPEED);
-    VelocityBrush brush(fluidGrid, 0.6f);
+    Brush brush(fluidGrid, 0.6f);
 
     while (!WindowShouldClose()) {
         // Key Inputs
