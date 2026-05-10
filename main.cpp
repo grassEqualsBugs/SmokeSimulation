@@ -20,10 +20,11 @@ int main() {
     FluidConfig config;
     config.cellSize = 0.2f;
     config.pressureIterations = 15;
+    config.deltaTime = 1 / 60.f;
 
     FluidGrid fluidGrid(80, 45, config);
     GridVisualization vis(fluidGrid, 1, GridVisMode::SPEED);
-    VelocityBrush brush(fluidGrid, 0.5f);
+    VelocityBrush brush(fluidGrid, 0.6f);
 
     while (!WindowShouldClose()) {
         // Key Inputs

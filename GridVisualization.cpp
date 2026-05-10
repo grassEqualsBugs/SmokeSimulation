@@ -16,7 +16,7 @@ GridVisualization::GridVisualization(FluidGrid& fluidGrid, int interpolatedVeloc
 
 void GridVisualization::renderGrid() {
     drawCells();
-    // drawInterpolatedVelocities();
+    drawInterpolatedVelocities();
     // drawVelX();
     // drawVelY();
 }
@@ -96,8 +96,8 @@ void GridVisualization::drawInterpolatedVelocities() {
                     float speed = Vector2Length(vel);
                     if (speed < 0.001f) continue;
 
-                    Vector2 end = Vector2Add(pos, Vector2Scale(vel, subH * 2.f));
-                    DrawArrow(pos, end, RAYWHITE, interpolatedVelocityArrowThickness);
+                    Vector2 end = Vector2Add(pos, Vector2Scale(vel, subH));
+                    DrawArrow(pos, end, BLACK, interpolatedVelocityArrowThickness);
                 }
             }
         }

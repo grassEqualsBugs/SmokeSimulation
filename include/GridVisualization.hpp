@@ -17,7 +17,7 @@ public:
     float cellBorderThickness = 0.03f;
     float speedVisMax = 1.f;
     float divergenceColorRange = 0.4f;
-    float interpolatedVelocityArrowThickness = 0.012f;
+    float interpolatedVelocityArrowThickness = 0.018f;
     float velocityArrowThickness = 0.02f;
     float halfCellSize;
     int interpolatedVelocitiesPerSide;
