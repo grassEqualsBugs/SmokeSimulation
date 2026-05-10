@@ -15,7 +15,7 @@ public:
     FluidGrid& fluidGrid;
     Vector2 cellDisplaySize;
     Vector2 boundsSize;
-    float cellBorderThickness = 0.03f;
+    float cellBorderThickness = 0.f;
     float speedVisMax = 1.f;
     float divergenceColorRange = 0.4f;
     float interpolatedVelocityArrowThickness = 0.018f;
