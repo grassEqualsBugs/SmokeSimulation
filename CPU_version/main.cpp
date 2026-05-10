@@ -29,6 +29,9 @@ int main() {
     while (!WindowShouldClose()) {
         // Key Inputs
         if (IsKeyPressed(KEY_R)) fluidGrid.reset();
+        if (IsKeyPressed(KEY_ONE)) vis.visMode = GridVisMode::SMOKE;
+        if (IsKeyPressed(KEY_TWO)) vis.visMode = GridVisMode::SPEED;
+        if (IsKeyPressed(KEY_THREE)) vis.visMode = GridVisMode::DIVERGENCE;
 
         // Updating
         brush.update(camera);
@@ -49,7 +52,9 @@ int main() {
 
         rlSetCullFace(RL_CULL_FACE_BACK);
         DrawText((std::to_string(GetFPS()).c_str()), 10, 10, 20, RAYWHITE);
-        // DrawText(("ERROR: " + std::to_string(fluidGrid.calculateDivergenceError())).c_str(), 10, 30, 20, (Color){ 0, 228, 48, 255 });
+        if (vis.visMode == GridVisMode::DIVERGENCE) {
+            DrawText(("ERROR: " + std::to_string(fluidGrid.calculateDivergenceError())).c_str(), 10, 30, 20, RAYWHITE);
+        }
         EndDrawing();
     }
 
