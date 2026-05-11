@@ -16,7 +16,7 @@ public:
     Vector2 cellDisplaySize;
     Vector2 boundsSize;
     float cellBorderThickness = 0.03f;
-    float speedVisMax = 1.f;
+    float speedVisMax = 1.5f;
     float divergenceColorRange = 0.4f;
     float interpolatedVelocityArrowThickness = 0.018f;
     float velocityArrowThickness = 0.02f;
