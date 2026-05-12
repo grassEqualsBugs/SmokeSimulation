@@ -21,6 +21,7 @@ int main() {
     config.cellSize = 0.1f;
     config.pressureIterations = 40;
     config.deltaTime = 1 / 30.f;
+    config.density = 1.f;
 
     FluidGrid fluidGrid(160, 90, config);
     GridVisualization vis(fluidGrid, 1, GridVisMode::SMOKE);

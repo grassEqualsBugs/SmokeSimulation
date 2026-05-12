@@ -2,11 +2,12 @@
 #include <vector>
 #include "raylib.h"
 
+// Default values for the config
 struct FluidConfig {
     float cellSize = 1.0f;
-    float density = 1.0f;
+    float density = 1.f;
     float deltaTime = 1.0f / 60.0f;
-    int pressureIterations = 10;
+    int pressureIterations = 30;
 };
 
 class FluidGrid {
