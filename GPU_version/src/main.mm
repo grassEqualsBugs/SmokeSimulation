@@ -1,6 +1,7 @@
 #import <Cocoa/Cocoa.h>
 #import <MetalKit/MetalKit.h>
 #import "../include/Renderer.hpp"
+#import "../include/AppDelegate.hpp"
 
 int main(int argc, const char *argv[]) {
   @autoreleasepool {
@@ -16,6 +17,11 @@ int main(int argc, const char *argv[]) {
                                         defer:NO]; // creates the window immediately
     [window setTitle:@"Smoke Simulation"];
     [window makeKeyAndOrderFront:nil];
+    [window center];
+
+    AppDelegate *delegate = [[AppDelegate alloc] init];
+    [app setDelegate:delegate];
+    [window setDelegate:delegate];
 
     id<MTLDevice> device = MTLCreateSystemDefaultDevice(); // get default GPU
     MTKView *view = [[MTKView alloc] initWithFrame:window.contentView.bounds
