@@ -7,7 +7,7 @@ OBJ_DIR = obj
 BIN_DIR = bin
 
 TARGET = $(BIN_DIR)/smoke_gpu
-SOURCES = $(SRC_DIR)/main.mm $(SRC_DIR)/Renderer.mm
+SOURCES = $(wildcard $(SRC_DIR)/*.mm)
 OBJECTS = $(SOURCES:$(SRC_DIR)/%.mm=$(OBJ_DIR)/%.o)
 
 SHADERS_SRC = $(SRC_DIR)/Shaders.metal
