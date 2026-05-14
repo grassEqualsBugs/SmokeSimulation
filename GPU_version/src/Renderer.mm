@@ -1,6 +1,7 @@
 #import "../include/Renderer.hpp"
 #import <AppKit/AppKit.h>
 #import "../include/SimParams.h"
+#import "../include/FluidSim.hpp"
 #import <Cocoa/Cocoa.h>
 #import <Metal/Metal.h>
 #import <MetalKit/MetalKit.h>
@@ -20,25 +21,19 @@
 
 // Actual implementation of renderer
 @implementation Renderer {
-    // basic stuff
-	id<MTLDevice> _device;
-	int _width;
-	int _height;
-
-    // setting up pipelines and such for sending commands to GPU
-	id<MTLCommandQueue> _commandQueue;
-	id<MTLComputePipelineState> _computePipeline;
-	id<MTLRenderPipelineState> _renderPipeline;
-
-    // data to be sent to GPU
-	id<MTLTexture> _texture;
-	id<MTLBuffer> _simConstantsBuffer;
     id<MTLBuffer> _frameDataBuffer;
+   	simd_float2   _mousePos;
+    bool          _leftDown;
+    bool          _rightDown;
 
-	// CPU records of these, to be updated every frame
-	simd_float2 _mousePos;
-    bool _leftDown;
-    bool _rightDown;
+	id<MTLDevice> _device;
+	int           _width;
+	int           _height;
+
+	id<MTLCommandQueue>         _commandQueue;
+	id<MTLComputePipelineState> _computePipeline;
+	id<MTLRenderPipelineState>  _renderPipeline;
+	FluidSim*                   _sim;
 }
 
 // Constructor (initialization of renderer)
@@ -49,22 +44,8 @@
     _width = 1600;
     _height = 900;
 
-    _device = view.device; // get access to the GPU
+    _device       = view.device; // get access to the GPU
     _commandQueue = [_device newCommandQueue]; // "conveyer belt" for command buffers per frame
-
-    // setting up data for sim parameters/constants and per-frame data
-    SimConstants simConstants;
-    simConstants.cellSize = 1.f / fmin(_width, _height);
-    simConstants.deltaTime = 1.f / 30.f;
-    simConstants.fluidDensity = 1.f;
-    simConstants.width = _width;
-    simConstants.height = _height;
-    simConstants.mouseRadius = 0.08;
-    _simConstantsBuffer = [_device newBufferWithBytes:&simConstants
-                                            length:sizeof(SimConstants)
-                                            options:MTLResourceStorageModeShared];
-    _frameDataBuffer = [_device newBufferWithLength:sizeof(FrameData)
-                                options:MTLResourceStorageModeShared];
 
     // load the compiled shaders into the library of shaders
     id<MTLLibrary> library = [_device newDefaultLibrary];
@@ -73,11 +54,9 @@
         return nil;
     }
 
-    // ---- set up compute pipeline ----
-    id<MTLFunction> kernelFn = [library newFunctionWithName:@"compute_test"];
-    NSError *error = nil;
-    _computePipeline = [_device newComputePipelineStateWithFunction: kernelFn error: &error];
-    if (error) NSLog(@"Compute pipeline error: %@", error);
+    _frameDataBuffer = [_device newBufferWithLength:sizeof(FrameData)
+                                options:MTLResourceStorageModeShared];
+    _sim = [[FluidSim alloc] initWithDevice:_device library:library];
 
     // ---- set up rendering pipeline ----
     id<MTLFunction> vertexFn = [library newFunctionWithName:@"vertex_main"];
@@ -86,17 +65,8 @@
     pipeDesc.vertexFunction = vertexFn;
     pipeDesc.fragmentFunction = fragmentFn;
     pipeDesc.colorAttachments[0].pixelFormat = view.colorPixelFormat;
+    NSError *error = nil;
     _renderPipeline = [_device newRenderPipelineStateWithDescriptor:pipeDesc error:&error];
-
-    // allocate texture at initialization to attribute of Renderer, to be used later in drawInMTKView
-    // data is all on gpu side, this is just to get the initial empty arrays over to gpu
-    MTLTextureDescriptor *td = [[MTLTextureDescriptor alloc] init];
-    td.textureType = MTLTextureType2D;
-    td.pixelFormat = MTLPixelFormatRGBA32Float;
-    td.width = _width; td.height = _height;
-    td.usage = MTLTextureUsageShaderRead | MTLTextureUsageShaderWrite;
-    td.storageMode = MTLStorageModePrivate; // Store texture only on GPU. fastest
-    _texture = [_device newTextureWithDescriptor:td];
 
     return self;
 }
@@ -134,24 +104,17 @@
 
 // drawInMTKView method -- render loop for the program, called every frame
 - (void)drawInMTKView:(MTKView *)view {
-    id<MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer]; // list of commands to the gpu
-
-    // all passing of live per-frame data to GPU (FrameData struct)
+    // update per-frame data on CPU side
     FrameData *frameData = (FrameData *)_frameDataBuffer.contents;
     frameData->mouse.pos = _mousePos;
     frameData->mouse.leftDown = _leftDown;
     frameData->mouse.rightDown = _rightDown;
 
-    // ---- compute pass ----
+    id<MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer]; // list of commands to the gpu
+
+    // ---- compute pass, all sim steps ----
     id<MTLComputeCommandEncoder> comp = [commandBuffer computeCommandEncoder];
-    [comp setComputePipelineState:_computePipeline];
-    [comp setTexture:_texture atIndex:0];
-    [comp setBuffer:_simConstantsBuffer offset:0 atIndex:0];
-    [comp setBuffer:_frameDataBuffer offset:0 atIndex:1];
-    // launch one thread per pixel
-    MTLSize gridSize = MTLSizeMake(1600, 900, 1);
-    MTLSize threadgroupSize = MTLSizeMake(16, 16, 1); // 16 x 16 is standard, but 8 x 8 and 32 x 32 also works
-    [comp dispatchThreads:gridSize threadsPerThreadgroup:threadgroupSize];
+    [_sim encodeSimStep:comp frameData:_frameDataBuffer];
     [comp endEncoding];
 
     // ---- render pass ----
@@ -159,7 +122,7 @@
     if (renderPassDescriptor != nil) {
         id<MTLRenderCommandEncoder> renderEncoder = [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
         [renderEncoder setRenderPipelineState:_renderPipeline];
-        [renderEncoder setFragmentTexture:_texture atIndex:0];
+        [renderEncoder setFragmentTexture:[_sim smokeTexture] atIndex:0];
         [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6];
         [renderEncoder endEncoding];
         // tell metal to display this frame's texture on screen when GPU finishes
