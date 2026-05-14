@@ -56,7 +56,7 @@
 
     _frameDataBuffer = [_device newBufferWithLength:sizeof(FrameData)
                                 options:MTLResourceStorageModeShared];
-    _sim = [[FluidSim alloc] initWithDevice:_device library:library];
+    _sim = [[FluidSim alloc] initWithDevice:_device library:library commandQueue:_commandQueue];
 
     // ---- set up rendering pipeline ----
     id<MTLFunction> vertexFn = [library newFunctionWithName:@"vertex_main"];

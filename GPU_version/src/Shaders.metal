@@ -98,24 +98,7 @@ kernel void advect_smoke(
     constant SimConstants& constants [[buffer(0)]],
     constant FrameData&    frame     [[buffer(1)]],
     uint2 gid [[thread_position_in_grid]])
-{
-	uint width = (uint) constants.width;
-	uint height = (uint) constants.height;
-
-    if (gid.x >= width || gid.y >= height) return;
-    float u = (float) gid.x / (float) width;
-    float v = (float) gid.y / (float) height;
-    float aspect = (float) width / (float) height;
-
-    float2 uvCorrected = float2(u * aspect , v);
-    float2 mouseCorrected = float2(frame.mouse.pos.x * aspect, frame.mouse.pos.y);
-
-    float3 color = float3(u, v, 0.f);
-    if (distance(uvCorrected, mouseCorrected) <= constants.mouseRadius) {
-    	color = float3(v, u, 0.f);
-    }
-    smoke.write(float4(color, 0.0), gid);
-}
+{}
 
 kernel void gs_red(
     texture2d<float, access::read_write> velX     [[texture(0)]],
@@ -158,3 +141,22 @@ kernel void update_velocities(
     constant FrameData&    frame     [[buffer(1)]],
     uint2 gid [[thread_position_in_grid]])
 {}
+
+kernel void clear_textures(
+    texture2d<float, access::write> velX     [[texture(0)]],
+    texture2d<float, access::write> velXTemp [[texture(1)]],
+    texture2d<float, access::write> velY     [[texture(2)]],
+    texture2d<float, access::write> velYTemp [[texture(3)]],
+    texture2d<float, access::write> pressure [[texture(4)]],
+    texture2d<float, access::write> smoke    [[texture(5)]],
+    texture2d<float, access::write> smokeTemp[[texture(6)]],
+    uint2 gid [[thread_position_in_grid]])
+{
+    velX.write(float4(0), gid);
+    velXTemp.write(float4(0), gid);
+    velY.write(float4(0), gid);
+    velYTemp.write(float4(0), gid);
+    pressure.write(float4(0), gid);
+    smoke.write(float4(0), gid);
+    smokeTemp.write(float4(0), gid);
+}

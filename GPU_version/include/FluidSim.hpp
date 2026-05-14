@@ -5,7 +5,7 @@
 #import <MetalKit/MetalKit.h>
 
 @interface FluidSim : NSObject
-- (instancetype)initWithDevice:(id<MTLDevice>)device library:(id<MTLLibrary>)library;
+- (instancetype)initWithDevice:(id<MTLDevice>)device library:(id<MTLLibrary>)library commandQueue:(id<MTLCommandQueue>)commandQueue;
 - (void)encodeSimStep:(id<MTLComputeCommandEncoder>)encoder frameData:(id<MTLBuffer>)frameData;
 - (id<MTLTexture>)smokeTexture;
 @end

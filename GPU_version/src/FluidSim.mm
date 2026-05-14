@@ -21,6 +21,7 @@
     id<MTLComputePipelineState> _advectVelXPipeline;
     id<MTLComputePipelineState> _advectVelYPipeline;
     id<MTLComputePipelineState> _advectSmokePipeline;
+    id<MTLComputePipelineState> _clearTexturesPipeline;;
     // red black Gauss-Seidel
     id<MTLComputePipelineState> _gsRedPipeline;
     id<MTLComputePipelineState> _gsBlackPipeline;
@@ -31,7 +32,9 @@
     int _height;
 }
 
-- (instancetype)initWithDevice:(id<MTLDevice>)device library:(id<MTLLibrary>)library {
+- (instancetype)initWithDevice:(id<MTLDevice>)device
+                       library:(id<MTLLibrary>)library
+                  commandQueue:(id<MTLCommandQueue>)commandQueue {
     self = [super init];
     if (!self) return nil;
 
@@ -42,6 +45,7 @@
     [self allocateTextures];
     [self buildPipelines:library];
     [self buildConstantsBuffer];
+    [self clearTextures:commandQueue];
     [self initializeSolids];
 
     return self;
@@ -64,12 +68,13 @@
     _velY        = [self makeTextureWidth:_width     height:_height + 1];
     _velYTemp    = [self makeTextureWidth:_width     height:_height + 1];
     _pressure    = [self makeTextureWidth:_width     height:_height];
-    
+
     // smoke textures use RGBA32Float
-    MTLTextureDescriptor *smokeDesc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA32Float
-                                                                                         width:_width
-                                                                                        height:_height
-                                                                                     mipmapped:NO];
+    MTLTextureDescriptor *smokeDesc =
+        [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA32Float
+                                                           width:_width
+                                                          height:_height
+                                                       mipmapped:NO];
     smokeDesc.usage       = MTLTextureUsageShaderRead | MTLTextureUsageShaderWrite;
     smokeDesc.storageMode = MTLStorageModePrivate;
     _smoke     = [_device newTextureWithDescriptor:smokeDesc];
@@ -104,6 +109,7 @@
     _gsRedPipeline            = [self makePipeline:library name:@"gs_red"];
     _gsBlackPipeline          = [self makePipeline:library name:@"gs_black"];
     _updateVelocitiesPipeline = [self makePipeline:library name:@"update_velocities"];
+    _clearTexturesPipeline    = [self makePipeline:library name:@"clear_textures"];
 }
 
 - (void)buildConstantsBuffer {
@@ -165,6 +171,25 @@
 
     // update velocities
     [self dispatch:encoder pipeline:_updateVelocitiesPipeline grid:grid threadgroup:threadgroup frameData:frameData];
+}
+
+- (void)clearTextures:(id<MTLCommandQueue>)commandQueue {
+    id<MTLCommandBuffer> cmd = [commandQueue commandBuffer];
+    id<MTLComputeCommandEncoder> enc = [cmd computeCommandEncoder];
+    [enc setComputePipelineState:_clearTexturesPipeline];
+    [enc setTexture:_velX      atIndex:0];
+    [enc setTexture:_velXTemp  atIndex:1];
+    [enc setTexture:_velY      atIndex:2];
+    [enc setTexture:_velYTemp  atIndex:3];
+    [enc setTexture:_pressure  atIndex:4];
+    [enc setTexture:_smoke     atIndex:5];
+    [enc setTexture:_smokeTemp atIndex:6];
+    MTLSize grid        = MTLSizeMake(_width + 1, _height + 1, 1); // +1 covers velX and velY dims
+    MTLSize threadgroup = MTLSizeMake(16, 16, 1);
+    [enc dispatchThreads:grid threadsPerThreadgroup:threadgroup];
+    [enc endEncoding];
+    [cmd commit];
+    [cmd waitUntilCompleted]; // block until clear finishes before first frame
 }
 
 - (id<MTLTexture>)smokeTexture {
