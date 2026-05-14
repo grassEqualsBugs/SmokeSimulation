@@ -21,7 +21,8 @@
     id<MTLComputePipelineState> _advectVelXPipeline;
     id<MTLComputePipelineState> _advectVelYPipeline;
     id<MTLComputePipelineState> _advectSmokePipeline;
-    id<MTLComputePipelineState> _clearTexturesPipeline;;
+    id<MTLComputePipelineState> _clearTexturesPipeline;
+    id<MTLComputePipelineState> _initSolidsPipeline;
     // red black Gauss-Seidel
     id<MTLComputePipelineState> _gsRedPipeline;
     id<MTLComputePipelineState> _gsBlackPipeline;
@@ -46,7 +47,7 @@
     [self buildPipelines:library];
     [self buildConstantsBuffer];
     [self clearTextures:commandQueue];
-    [self initializeSolids];
+    [self initializeSolids:commandQueue];
 
     return self;
 }
@@ -87,7 +88,7 @@
     td.width       = _width;
     td.height      = _height;
     td.usage       = MTLTextureUsageShaderRead | MTLTextureUsageShaderWrite;
-    td.storageMode = MTLStorageModeShared; // needs to be shared so CPU can upload boundary data
+    td.storageMode = MTLStorageModePrivate;
     _solids = [_device newTextureWithDescriptor:td];
 }
 
@@ -110,6 +111,7 @@
     _gsBlackPipeline          = [self makePipeline:library name:@"gs_black"];
     _updateVelocitiesPipeline = [self makePipeline:library name:@"update_velocities"];
     _clearTexturesPipeline    = [self makePipeline:library name:@"clear_textures"];
+    _initSolidsPipeline       = [self makePipeline:library name:@"init_solids"];
 }
 
 - (void)buildConstantsBuffer {
@@ -123,10 +125,6 @@
     _simConstantsBuffer = [_device newBufferWithBytes:&c
                                                length:sizeof(SimConstants)
                                               options:MTLResourceStorageModeShared];
-}
-
-- (void)initializeSolids {
-    // upload boundary solid values to _solids texture
 }
 
 // helper to avoid repeating texture/buffer binds every dispatch
@@ -171,6 +169,23 @@
 
     // update velocities
     [self dispatch:encoder pipeline:_updateVelocitiesPipeline grid:grid threadgroup:threadgroup frameData:frameData];
+}
+
+
+- (void)initializeSolids:(id<MTLCommandQueue>)commandQueue {
+    id<MTLCommandBuffer> cmd = [commandQueue commandBuffer];
+    id<MTLComputeCommandEncoder> enc = [cmd computeCommandEncoder];
+    [enc setComputePipelineState:_initSolidsPipeline];
+    [enc setTexture:_solids atIndex:0];
+    [enc setBuffer:_simConstantsBuffer offset:0 atIndex:0];
+    
+    MTLSize grid        = MTLSizeMake(_width, _height, 1);
+    MTLSize threadgroup = MTLSizeMake(16, 16, 1);
+    [enc dispatchThreads:grid threadsPerThreadgroup:threadgroup];
+    
+    [enc endEncoding];
+    [cmd commit];
+    [cmd waitUntilCompleted];
 }
 
 - (void)clearTextures:(id<MTLCommandQueue>)commandQueue {
