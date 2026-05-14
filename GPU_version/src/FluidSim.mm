@@ -178,11 +178,11 @@
     [enc setComputePipelineState:_initSolidsPipeline];
     [enc setTexture:_solids atIndex:0];
     [enc setBuffer:_simConstantsBuffer offset:0 atIndex:0];
-    
+
     MTLSize grid        = MTLSizeMake(_width, _height, 1);
     MTLSize threadgroup = MTLSizeMake(16, 16, 1);
     [enc dispatchThreads:grid threadsPerThreadgroup:threadgroup];
-    
+
     [enc endEncoding];
     [cmd commit];
     [cmd waitUntilCompleted];

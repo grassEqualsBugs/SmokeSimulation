@@ -30,8 +30,28 @@ fragment float4 fragment_main(
     return texture.sample(s, in.uv);
 }
 
+// -----------------------
+// ------ UV HELPERS -----
+// -----------------------
+
+// returns if a gid is inbounds
+bool in_bounds(uint2 gid, constant SimConstants& constants) {
+	return !(gid.x >= (uint)constants.width || gid.y >= (uint)constants.height);
+}
+
+// returns the uv coords [0,1] for any given gid
 float2 get_uv(uint2 gid, constant SimConstants& constants) {
 	return float2(gid.x / (float)constants.width, gid.y / (float)constants.height);
+}
+
+// corrects UV coordinates for stretch/squash
+float2 c_uv(float2 uv, constant SimConstants& constants) {
+	return float2(uv.x * constants.width / constants.height, uv.y);
+}
+
+// x range is [0, aspect] y range is [0, 1]
+float2 get_uv_c(uint2 gid, constant SimConstants& constants) {
+	return c_uv(get_uv(gid, constants), constants);
 }
 
 kernel void inject_velocity(
@@ -61,10 +81,11 @@ kernel void inject_smoke(
     constant FrameData&    frame     [[buffer(1)]],
     uint2 gid [[thread_position_in_grid]])
 {
-    if (gid.x >= (uint)constants.width || gid.y >= (uint)constants.height) return;
-    if (solids.read(gid).x > 0) {
-        smoke.write(float4(1.0, 1.0, 1.0, 1.0), gid);
-        return;
+    if (!in_bounds(gid, constants)) return;
+    float2 uv_c = get_uv_c(gid, constants);
+    float2 mouse_uv_c = c_uv(frame.mouse.pos, constants);
+    if (distance(uv_c, mouse_uv_c) <= constants.mouseRadius && frame.mouse.rightDown) {
+    	smoke.write(float4(1), gid);
     }
 }
 
