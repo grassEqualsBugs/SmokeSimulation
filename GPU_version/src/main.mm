@@ -11,8 +11,7 @@ int main(int argc, const char *argv[]) {
     NSWindow *window =
         [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 1600, 900)
                                     styleMask:(NSWindowStyleMaskTitled |
-                                               NSWindowStyleMaskClosable |
-                                               NSWindowStyleMaskResizable)
+                                               NSWindowStyleMaskClosable)
                                       backing:NSBackingStoreBuffered // back and front buffer rendering scheme
                                         defer:NO]; // creates the window immediately
     [window setTitle:@"Smoke Simulation"];
@@ -24,10 +23,10 @@ int main(int argc, const char *argv[]) {
     [window setDelegate:delegate];
 
     id<MTLDevice> device = MTLCreateSystemDefaultDevice(); // get default GPU
-    MTKView *view = [[MTKView alloc] initWithFrame:window.contentView.bounds
-                                            device:device];
+    SimView *view = [[SimView alloc] initWithFrame:window.contentView.bounds device:device];
     view.clearColor = MTLClearColorMake(0.1, 0.1, 0.1, 1.0);
     [window setContentView:view];
+    [window setAcceptsMouseMovedEvents:YES];
 
     Renderer *renderer = [[Renderer alloc] initWithMetalKitView:view];
     view.delegate = renderer;
