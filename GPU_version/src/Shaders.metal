@@ -99,10 +99,22 @@ kernel void advect_smoke(
     constant FrameData&    frame     [[buffer(1)]],
     uint2 gid [[thread_position_in_grid]])
 {
-    if (gid.x >= (uint)constants.width || gid.y >= (uint)constants.height) return;
-    float r = (float)gid.x / (float)constants.width;
-    float g = (float)gid.y / (float)constants.height;
-    smoke.write(float4(r, g, 0.0, 0.0), gid);
+	uint width = (uint) constants.width;
+	uint height = (uint) constants.height;
+
+    if (gid.x >= width || gid.y >= height) return;
+    float u = (float) gid.x / (float) width;
+    float v = (float) gid.y / (float) height;
+    float aspect = (float) width / (float) height;
+
+    float2 uvCorrected = float2(u * aspect , v);
+    float2 mouseCorrected = float2(frame.mouse.pos.x * aspect, frame.mouse.pos.y);
+
+    float3 color = float3(u, v, 0.f);
+    if (distance(uvCorrected, mouseCorrected) <= constants.mouseRadius) {
+    	color = float3(v, u, 0.f);
+    }
+    smoke.write(float4(color, 0.0), gid);
 }
 
 kernel void gs_red(
