@@ -2,9 +2,21 @@
 
 #ifdef __OBJC__
 #import <MetalKit/MetalKit.h>
+
+@protocol MouseHandler <NSObject>
+- (void)mouseDown:(NSEvent *)e;
+- (void)mouseUp:(NSEvent *)e;
+- (void)mouseMoved:(NSEvent *)e;
+- (void)mouseDragged:(NSEvent *)e;
+- (void)rightMouseDown:(NSEvent *)e;
+- (void)rightMouseUp:(NSEvent *)e;
+- (void)rightMouseDragged:(NSEvent *)e;
+@end
+
 @interface SimView : MTKView
 @end
-@interface Renderer : NSObject <MTKViewDelegate>
+
+@interface Renderer : NSObject <MTKViewDelegate, MouseHandler>
 - (instancetype)initWithMetalKitView:(MTKView *)view;
 @end
 #endif

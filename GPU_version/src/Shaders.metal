@@ -20,11 +20,11 @@ kernel void compute_test(
 
 	float aspect = (float)width / (float)height;
 	float2 uv_corrected = float2(u * aspect, v);
-	float2 mouse_corrected = float2(frameData.mousePos.x * aspect, frameData.mousePos.y);
+	float2 mouse_corrected = float2(frameData.mouse.pos.x * aspect, frameData.mouse.pos.y);
 
 	float3 color = float3(u, v, 1.f);
 	if (distance(uv_corrected, mouse_corrected) < simConstants.mouseRadius) {
-		if (frameData.lastMouseEvent == MouseEventTypeLeftMouseDown) {
+		if (frameData.mouse.leftDown || frameData.mouse.rightDown) {
 			color = float3(1.0, 1.0, 0.0);
 		} else {
 			color = float3(u, v, 0.f);

@@ -8,10 +8,14 @@
 
 @implementation SimView
 - (BOOL)acceptsFirstResponder { return YES; }
-- (void)mouseDown:(NSEvent *)e   { [(Renderer *)self.delegate mouseDown:e]; }
-- (void)mouseUp:(NSEvent *)e     { [(Renderer *)self.delegate mouseUp:e]; }
-- (void)mouseMoved:(NSEvent *)e  { [(Renderer *)self.delegate mouseMoved:e]; }
-- (void)mouseDragged:(NSEvent *)e{ [(Renderer *)self.delegate mouseDragged:e]; }
+
+- (void)mouseDown:(NSEvent *)e         { [(id<MouseHandler>)self.delegate mouseDown:e]; }
+- (void)mouseUp:(NSEvent *)e           { [(id<MouseHandler>)self.delegate mouseUp:e]; }
+- (void)mouseMoved:(NSEvent *)e        { [(id<MouseHandler>)self.delegate mouseMoved:e]; }
+- (void)mouseDragged:(NSEvent *)e      { [(id<MouseHandler>)self.delegate mouseDragged:e]; }
+- (void)rightMouseDown:(NSEvent *)e    { [(id<MouseHandler>)self.delegate rightMouseDown:e]; }
+- (void)rightMouseUp:(NSEvent *)e      { [(id<MouseHandler>)self.delegate rightMouseUp:e]; }
+- (void)rightMouseDragged:(NSEvent *)e { [(id<MouseHandler>)self.delegate rightMouseDragged:e]; }
 @end
 
 // Actual implementation of renderer
@@ -33,7 +37,8 @@
 
 	// CPU records of these, to be updated every frame
 	simd_float2 _mousePos;
-	NSEventType _lastMouseEvent;
+    bool _leftDown;
+    bool _rightDown;
 }
 
 // Constructor (initialization of renderer)
@@ -50,7 +55,7 @@
     // setting up data for sim parameters/constants and per-frame data
     SimConstants simConstants;
     simConstants.cellSize = 1.f / fmin(_width, _height);
-    simConstants.deltaTime = 1.f / 3.f;
+    simConstants.deltaTime = 1.f / 30.f;
     simConstants.fluidDensity = 1.f;
     simConstants.width = _width;
     simConstants.height = _height;
@@ -98,7 +103,6 @@
 
 - (void)updateMousePos:(NSEvent *)event {
     NSPoint p = [event locationInWindow];
-    // Invert Y because NSView/Window coordinates are bottom-left
     _mousePos = simd_make_float2(p.x / _width, p.y / _height);
 }
 
@@ -108,12 +112,23 @@
 - (void)mouseDragged:(NSEvent *)event {
     [self updateMousePos:event];
 }
+- (void)rightMouseDragged:(NSEvent *)event {
+    [self updateMousePos:event];
+}
 - (void)mouseDown:(NSEvent *)event {
-    _lastMouseEvent = event.type;
+    _leftDown = true;
     [self updateMousePos:event];
 }
 - (void)mouseUp:(NSEvent *)event {
-    _lastMouseEvent = event.type;
+    _leftDown = false;
+    [self updateMousePos:event];
+}
+- (void)rightMouseDown:(NSEvent *)event {
+    _rightDown = true;
+    [self updateMousePos:event];
+}
+- (void)rightMouseUp:(NSEvent *)event {
+    _rightDown = false;
     [self updateMousePos:event];
 }
 
@@ -123,8 +138,9 @@
 
     // all passing of live per-frame data to GPU (FrameData struct)
     FrameData *frameData = (FrameData *)_frameDataBuffer.contents;
-    frameData->mousePos = _mousePos;
-    frameData->lastMouseEvent = _lastMouseEvent;
+    frameData->mouse.pos = _mousePos;
+    frameData->mouse.leftDown = _leftDown;
+    frameData->mouse.rightDown = _rightDown;
 
     // ---- compute pass ----
     id<MTLComputeCommandEncoder> comp = [commandBuffer computeCommandEncoder];
