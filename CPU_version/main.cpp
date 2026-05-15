@@ -19,7 +19,7 @@ int main() {
 
     FluidConfig config;
     config.cellSize = 0.1f;
-    config.pressureIterations = 40;
+    config.pressureIterations = 120;
     config.deltaTime = 1 / 30.f;
     config.density = 1.f;
 
