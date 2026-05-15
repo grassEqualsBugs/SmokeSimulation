@@ -25,7 +25,7 @@ int main() {
 
     FluidGrid fluidGrid(160, 90, config);
     GridVisualization vis(fluidGrid, 1, GridVisMode::SMOKE);
-    Brush brush(fluidGrid, 0.6f, 2.0f);
+    Brush brush(fluidGrid, 0.9f, 2.0f);
 
     while (!WindowShouldClose()) {
         // Key Inputs
