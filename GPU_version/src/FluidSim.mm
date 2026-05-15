@@ -128,61 +128,101 @@
                                               options:MTLResourceStorageModeShared];
 }
 
-// helper to avoid repeating texture/buffer binds every dispatch
+// helper for flexible kernel dispatch
 - (void)dispatch:(id<MTLComputeCommandEncoder>)encoder
         pipeline:(id<MTLComputePipelineState>)pipeline
             grid:(MTLSize)grid
-     threadgroup:(MTLSize)threadgroup
-       frameData:(id<MTLBuffer>)frameData {
+        textures:(NSArray<id<MTLTexture>> *)textures
+         buffers:(NSArray<id<MTLBuffer>> *)buffers {
     [encoder setComputePipelineState:pipeline];
-    [encoder setTexture:_velX        atIndex:0];
-    [encoder setTexture:_velXTemp    atIndex:1];
-    [encoder setTexture:_velY        atIndex:2];
-    [encoder setTexture:_velYTemp    atIndex:3];
-    [encoder setTexture:_pressure    atIndex:4];
-    [encoder setTexture:_smoke       atIndex:5];
-    [encoder setTexture:_smokeTemp   atIndex:6];
-    [encoder setTexture:_solids      atIndex:7];
-    [encoder setBuffer:_simConstantsBuffer offset:0 atIndex:0];
-    [encoder setBuffer:frameData           offset:0 atIndex:1];
+    for (NSUInteger i = 0; i < textures.count; i++) {
+        [encoder setTexture:textures[i] atIndex:i];
+    }
+    for (NSUInteger i = 0; i < buffers.count; i++) {
+        [encoder setBuffer:buffers[i] offset:0 atIndex:i];
+    }
+
+    MTLSize threadgroup = MTLSizeMake(16, 16, 1);
     [encoder dispatchThreads:grid threadsPerThreadgroup:threadgroup];
+}
+
+- (void)swapTextures:(id<MTLTexture> *)a with:(id<MTLTexture> *)b {
+    id<MTLTexture> temp = *a;
+    *a = *b;
+    *b = temp;
 }
 
 - (void)encodeSimStep:(id<MTLComputeCommandEncoder>)encoder
             frameData:(id<MTLBuffer>)frameData {
     MTLSize grid        = MTLSizeMake(_width, _height, 1);
-    MTLSize threadgroup = MTLSizeMake(16, 16, 1);
 
     // inject (mouse input)
-    [self dispatch:encoder pipeline:_injectVelocityPipeline grid:MTLSizeMake(_width+1, _height+1, 1) threadgroup:threadgroup frameData:frameData];
-    [self dispatch:encoder pipeline:_injectSmokePipeline     grid:grid threadgroup:threadgroup frameData:frameData];
+    [self dispatch:encoder
+          pipeline:_injectVelocityPipeline
+              grid:MTLSizeMake(_width+1, _height+1, 1)
+          textures:@[_velX, _velY]
+           buffers:@[_simConstantsBuffer, frameData]];
+
+    [self dispatch:encoder
+          pipeline:_injectSmokePipeline
+              grid:grid
+          textures:@[_smoke]
+           buffers:@[_simConstantsBuffer, frameData]];
 
     // advect
-    [self dispatch:encoder pipeline:_advectVelXPipeline    grid:MTLSizeMake(_width+1, _height,   1) threadgroup:threadgroup frameData:frameData];
-    [self dispatch:encoder pipeline:_advectVelYPipeline    grid:MTLSizeMake(_width,   _height+1, 1) threadgroup:threadgroup frameData:frameData];
-    [self dispatch:encoder pipeline:_advectSmokePipeline   grid:grid threadgroup:threadgroup frameData:frameData];
+    [self dispatch:encoder
+          pipeline:_advectVelXPipeline
+              grid:MTLSizeMake(_width+1, _height, 1)
+          textures:@[_velX, _velY, _solids, _velXTemp]
+           buffers:@[_simConstantsBuffer]];
+    [self swapTextures:&_velX with:&_velXTemp];
+
+    [self dispatch:encoder
+          pipeline:_advectVelYPipeline
+              grid:MTLSizeMake(_width, _height+1, 1)
+          textures:@[_velX, _velY, _solids, _velYTemp]
+           buffers:@[_simConstantsBuffer]];
+    [self swapTextures:&_velY with:&_velYTemp];
+
+    [self dispatch:encoder
+          pipeline:_advectSmokePipeline
+              grid:grid
+          textures:@[_velX, _velY, _smoke, _solids, _smokeTemp]
+           buffers:@[_simConstantsBuffer]];
+    [self swapTextures:&_smoke with:&_smokeTemp];
 
     // pressure solve
-    for (int i = 0; i < 40; i++) { // (TODO): easy changing of iterations, hard coded at 40 right now...
-        [self dispatch:encoder pipeline:_gsRedPipeline   grid:grid threadgroup:threadgroup frameData:frameData];
-        [self dispatch:encoder pipeline:_gsBlackPipeline grid:grid threadgroup:threadgroup frameData:frameData];
+    for (int i = 0; i < 40; i++) {
+        [self dispatch:encoder
+              pipeline:_gsRedPipeline
+                  grid:grid
+              textures:@[_pressure, _velX, _velY, _solids]
+               buffers:@[_simConstantsBuffer]];
+
+        [self dispatch:encoder
+              pipeline:_gsBlackPipeline
+                  grid:grid
+              textures:@[_pressure, _velX, _velY, _solids]
+               buffers:@[_simConstantsBuffer]];
     }
 
     // update velocities
-    [self dispatch:encoder pipeline:_updateVelocitiesPipeline grid:grid threadgroup:threadgroup frameData:frameData];
+    [self dispatch:encoder
+          pipeline:_updateVelocitiesPipeline
+              grid:grid
+          textures:@[_velX, _velY, _pressure, _solids]
+           buffers:@[_simConstantsBuffer]];
 }
-
 
 - (void)initializeSolids:(id<MTLCommandQueue>)commandQueue {
     id<MTLCommandBuffer> cmd = [commandQueue commandBuffer];
     id<MTLComputeCommandEncoder> enc = [cmd computeCommandEncoder];
-    [enc setComputePipelineState:_initSolidsPipeline];
-    [enc setTexture:_solids atIndex:0];
-    [enc setBuffer:_simConstantsBuffer offset:0 atIndex:0];
 
-    MTLSize grid        = MTLSizeMake(_width, _height, 1);
-    MTLSize threadgroup = MTLSizeMake(16, 16, 1);
-    [enc dispatchThreads:grid threadsPerThreadgroup:threadgroup];
+    [self dispatch:enc
+          pipeline:_initSolidsPipeline
+              grid:MTLSizeMake(_width, _height, 1)
+          textures:@[_solids]
+           buffers:@[_simConstantsBuffer]];
 
     [enc endEncoding];
     [cmd commit];
@@ -192,20 +232,16 @@
 - (void)clearTextures:(id<MTLCommandQueue>)commandQueue {
     id<MTLCommandBuffer> cmd = [commandQueue commandBuffer];
     id<MTLComputeCommandEncoder> enc = [cmd computeCommandEncoder];
-    [enc setComputePipelineState:_clearTexturesPipeline];
-    [enc setTexture:_velX      atIndex:0];
-    [enc setTexture:_velXTemp  atIndex:1];
-    [enc setTexture:_velY      atIndex:2];
-    [enc setTexture:_velYTemp  atIndex:3];
-    [enc setTexture:_pressure  atIndex:4];
-    [enc setTexture:_smoke     atIndex:5];
-    [enc setTexture:_smokeTemp atIndex:6];
-    MTLSize grid        = MTLSizeMake(_width + 1, _height + 1, 1); // +1 covers velX and velY dims
-    MTLSize threadgroup = MTLSizeMake(16, 16, 1);
-    [enc dispatchThreads:grid threadsPerThreadgroup:threadgroup];
+
+    [self dispatch:enc
+          pipeline:_clearTexturesPipeline
+              grid:MTLSizeMake(_width + 1, _height + 1, 1)
+          textures:@[_velX, _velXTemp, _velY, _velYTemp, _pressure, _smoke, _smokeTemp]
+           buffers:@[_simConstantsBuffer]];
+
     [enc endEncoding];
     [cmd commit];
-    [cmd waitUntilCompleted]; // block until clear finishes before first frame
+    [cmd waitUntilCompleted];
 }
 
 - (id<MTLTexture>)smokeTexture {

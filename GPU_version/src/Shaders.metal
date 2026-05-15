@@ -64,13 +64,7 @@ float2 get_uv_c(uint2 gid, constant SimConstants& constants) {
 
 kernel void inject_velocity(
     texture2d<float, access::read_write> velX     [[texture(0)]],
-    texture2d<float, access::read_write> velXTemp [[texture(1)]],
-    texture2d<float, access::read_write> velY     [[texture(2)]],
-    texture2d<float, access::read_write> velYTemp [[texture(3)]],
-    texture2d<float, access::read_write> pressure [[texture(4)]],
-    texture2d<float, access::read_write> smoke  [[texture(5)]],
-    texture2d<float, access::read_write> smokeTemp [[texture(6)]],
-    texture2d<uint,  access::read>       solids   [[texture(7)]],
+    texture2d<float, access::read_write> velY     [[texture(1)]],
     constant SimConstants& constants [[buffer(0)]],
     constant FrameData&    frame     [[buffer(1)]],
     uint2 gid [[thread_position_in_grid]])
@@ -83,7 +77,10 @@ kernel void inject_velocity(
     // Update velX (grid size: width+1 x height)
     // velX[i, j] is at (i, j+0.5)
     if (in_bounds_x1(gid, constants)) {
-        float2 uv = float2(gid.x / (float)constants.width, (gid.y + 0.5f) / (float)constants.height);
+        float2 uv = float2(
+        	gid.x / (float)constants.width,
+        	(gid.y + 0.5f) / (float)constants.height
+        );
         if (distance(c_uv(uv, constants), mouse_uv_c) <= constants.mouseRadius) {
             float v = velX.read(gid).r + delta.x * constants.velocityStrength;
             velX.write(float4(v, 0, 0, 0), gid);
@@ -93,7 +90,10 @@ kernel void inject_velocity(
     // Update velY (grid size: width x height+1)
     // velY[i, j] is at (i+0.5, j)
     if (in_bounds_y1(gid, constants)) {
-        float2 uv = float2((gid.x + 0.5f) / (float)constants.width, gid.y / (float)constants.height);
+        float2 uv = float2(
+        	(gid.x + 0.5f) / (float)constants.width,
+         	gid.y / (float)constants.height
+        );
         if (distance(c_uv(uv, constants), mouse_uv_c) <= constants.mouseRadius) {
             float v = velY.read(gid).r + delta.y * constants.velocityStrength;
             velY.write(float4(v, 0, 0, 0), gid);
@@ -102,14 +102,7 @@ kernel void inject_velocity(
 }
 
 kernel void inject_smoke(
-    texture2d<float, access::read_write> velX     [[texture(0)]],
-    texture2d<float, access::read_write> velXTemp [[texture(1)]],
-    texture2d<float, access::read_write> velY     [[texture(2)]],
-    texture2d<float, access::read_write> velYTemp [[texture(3)]],
-    texture2d<float, access::read_write> pressure [[texture(4)]],
-    texture2d<float, access::read_write> smoke  [[texture(5)]],
-    texture2d<float, access::read_write> smokeTemp [[texture(6)]],
-    texture2d<uint,  access::read>       solids   [[texture(7)]],
+    texture2d<float, access::read_write> smoke  [[texture(0)]],
     constant SimConstants& constants [[buffer(0)]],
     constant FrameData&    frame     [[buffer(1)]],
     uint2 gid [[thread_position_in_grid]])
@@ -125,86 +118,60 @@ kernel void inject_smoke(
 }
 
 kernel void advect_velX(
-    texture2d<float, access::read_write> velX     [[texture(0)]],
-    texture2d<float, access::read_write> velXTemp [[texture(1)]],
-    texture2d<float, access::read_write> velY     [[texture(2)]],
-    texture2d<float, access::read_write> velYTemp [[texture(3)]],
-    texture2d<float, access::read_write> pressure [[texture(4)]],
-    texture2d<float, access::read_write> smoke  [[texture(5)]],
-    texture2d<float, access::read_write> smokeTemp [[texture(6)]],
-    texture2d<uint,  access::read>       solids   [[texture(7)]],
-    constant SimConstants& constants [[buffer(0)]],
-    constant FrameData&    frame     [[buffer(1)]],
+    texture2d<float, access::read>  velX      [[texture(0)]],
+    texture2d<float, access::read>  velY      [[texture(1)]],
+    texture2d<uint,  access::read>  solids    [[texture(2)]],
+    texture2d<float, access::write> velXTemp  [[texture(3)]],
+    constant SimConstants& constants          [[buffer(0)]],
     uint2 gid [[thread_position_in_grid]])
 {}
 
 kernel void advect_velY(
-    texture2d<float, access::read_write> velX     [[texture(0)]],
-    texture2d<float, access::read_write> velXTemp [[texture(1)]],
-    texture2d<float, access::read_write> velY     [[texture(2)]],
-    texture2d<float, access::read_write> velYTemp [[texture(3)]],
-    texture2d<float, access::read_write> pressure [[texture(4)]],
-    texture2d<float, access::read_write> smoke  [[texture(5)]],
-    texture2d<float, access::read_write> smokeTemp [[texture(6)]],
-    texture2d<uint,  access::read>       solids   [[texture(7)]],
-    constant SimConstants& constants [[buffer(0)]],
-    constant FrameData&    frame     [[buffer(1)]],
+    texture2d<float, access::read>  velX      [[texture(0)]],
+    texture2d<float, access::read>  velY      [[texture(1)]],
+    texture2d<uint,  access::read>  solids    [[texture(2)]],
+    texture2d<float, access::write> velYTemp  [[texture(3)]],
+    constant SimConstants& constants          [[buffer(0)]],
     uint2 gid [[thread_position_in_grid]])
 {}
 
 kernel void advect_smoke(
-    texture2d<float, access::read_write> velX     [[texture(0)]],
-    texture2d<float, access::read_write> velXTemp [[texture(1)]],
-    texture2d<float, access::read_write> velY     [[texture(2)]],
-    texture2d<float, access::read_write> velYTemp [[texture(3)]],
-    texture2d<float, access::read_write> pressure [[texture(4)]],
-    texture2d<float, access::read_write> smoke  [[texture(5)]],
-    texture2d<float, access::read_write> smokeTemp [[texture(6)]],
-    texture2d<uint,  access::read>       solids   [[texture(7)]],
-    constant SimConstants& constants [[buffer(0)]],
-    constant FrameData&    frame     [[buffer(1)]],
+    texture2d<float, access::read>  velX      [[texture(0)]],
+    texture2d<float, access::read>  velY      [[texture(1)]],
+    texture2d<float, access::read>  smoke     [[texture(2)]],
+    texture2d<uint,  access::read>  solids    [[texture(3)]],
+    texture2d<float, access::write> smokeTemp [[texture(4)]],
+    constant SimConstants& constants          [[buffer(0)]],
     uint2 gid [[thread_position_in_grid]])
-{}
+{
+	// placeholder: just copy smoke into smokeTemp so swap doesn't lose data
+    smokeTemp.write(smoke.read(gid), gid);
+}
 
 kernel void gs_red(
-    texture2d<float, access::read_write> velX     [[texture(0)]],
-    texture2d<float, access::read_write> velXTemp [[texture(1)]],
-    texture2d<float, access::read_write> velY     [[texture(2)]],
-    texture2d<float, access::read_write> velYTemp [[texture(3)]],
-    texture2d<float, access::read_write> pressure [[texture(4)]],
-    texture2d<float, access::read_write> smoke  [[texture(5)]],
-    texture2d<float, access::read_write> smokeTemp [[texture(6)]],
-    texture2d<uint,  access::read>       solids   [[texture(7)]],
+    texture2d<float, access::read_write> pressure [[texture(0)]],
+    texture2d<float, access::read>       velX     [[texture(1)]],
+    texture2d<float, access::read>       velY     [[texture(2)]],
+    texture2d<uint,  access::read>       solids   [[texture(3)]],
     constant SimConstants& constants [[buffer(0)]],
-    constant FrameData&    frame     [[buffer(1)]],
     uint2 gid [[thread_position_in_grid]])
 {}
 
 kernel void gs_black(
-    texture2d<float, access::read_write> velX     [[texture(0)]],
-    texture2d<float, access::read_write> velXTemp [[texture(1)]],
-    texture2d<float, access::read_write> velY     [[texture(2)]],
-    texture2d<float, access::read_write> velYTemp [[texture(3)]],
-    texture2d<float, access::read_write> pressure [[texture(4)]],
-    texture2d<float, access::read_write> smoke  [[texture(5)]],
-    texture2d<float, access::read_write> smokeTemp [[texture(6)]],
-    texture2d<uint,  access::read>       solids   [[texture(7)]],
+    texture2d<float, access::read_write> pressure [[texture(0)]],
+    texture2d<float, access::read>       velX     [[texture(1)]],
+    texture2d<float, access::read>       velY     [[texture(2)]],
+    texture2d<uint,  access::read>       solids   [[texture(3)]],
     constant SimConstants& constants [[buffer(0)]],
-    constant FrameData&    frame     [[buffer(1)]],
     uint2 gid [[thread_position_in_grid]])
 {}
 
 kernel void update_velocities(
     texture2d<float, access::read_write> velX     [[texture(0)]],
-    texture2d<float, access::read_write> velXTemp [[texture(1)]],
-    texture2d<float, access::read_write> velY     [[texture(2)]],
-    texture2d<float, access::read_write> velYTemp [[texture(3)]],
-    texture2d<float, access::read_write> pressure [[texture(4)]],
-    texture2d<float, access::read_write> smoke  [[texture(5)]],
-    texture2d<float, access::read_write> smokeTemp [[texture(6)]],
-    texture2d<uint,  access::read>       solids   [[texture(7)]],
+    texture2d<float, access::read_write> velY     [[texture(1)]],
+    texture2d<float, access::read>       pressure [[texture(2)]],
+    texture2d<uint,  access::read>       solids   [[texture(3)]],
     constant SimConstants& constants [[buffer(0)]],
-    constant FrameData&    frame     [[buffer(1)]],
     uint2 gid [[thread_position_in_grid]])
 {}
 
@@ -213,7 +180,7 @@ kernel void init_solids(
     constant SimConstants& constants      [[buffer(0)]],
     uint2 gid [[thread_position_in_grid]])
 {
-    if (gid.x >= (uint)constants.width || gid.y >= (uint)constants.height) return;
+    if (!in_bounds(gid, constants)) return;
     bool isBorder = gid.x == 0 || gid.x == (uint)constants.width - 1
                  || gid.y == 0 || gid.y == (uint)constants.height - 1;
     solids.write(uint4(isBorder ? 1 : 0), gid);
@@ -227,13 +194,20 @@ kernel void clear_textures(
     texture2d<float, access::write> pressure [[texture(4)]],
     texture2d<float, access::write> smoke    [[texture(5)]],
     texture2d<float, access::write> smokeTemp[[texture(6)]],
+    constant SimConstants& constants      [[buffer(0)]],
     uint2 gid [[thread_position_in_grid]])
 {
-    if (gid.x < velX.get_width() && gid.y < velX.get_height()) velX.write(float4(0), gid);
-    if (gid.x < velXTemp.get_width() && gid.y < velXTemp.get_height()) velXTemp.write(float4(0), gid);
-    if (gid.x < velY.get_width() && gid.y < velY.get_height()) velY.write(float4(0), gid);
-    if (gid.x < velYTemp.get_width() && gid.y < velYTemp.get_height()) velYTemp.write(float4(0), gid);
-    if (gid.x < pressure.get_width() && gid.y < pressure.get_height()) pressure.write(float4(0), gid);
-    if (gid.x < smoke.get_width() && gid.y < smoke.get_height()) smoke.write(float4(0), gid);
-    if (gid.x < smokeTemp.get_width() && gid.y < smokeTemp.get_height()) smokeTemp.write(float4(0), gid);
+    if (in_bounds_x1(gid, constants)) {
+    	velX.write(float4(0), gid);
+     	velXTemp.write(float4(0), gid);
+    }
+    if (in_bounds_y1(gid, constants)) {
+    	velY.write(float4(0), gid);
+     	velYTemp.write(float4(0), gid);
+    }
+    if (in_bounds(gid, constants)) {
+    	pressure.write(float4(0), gid);
+    	smoke.write(float4(0), gid);
+     	smokeTemp.write(float4(0), gid);
+    }
 }
