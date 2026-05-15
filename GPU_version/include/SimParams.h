@@ -17,10 +17,12 @@ typedef struct {
     int width;
     int height;
     float mouseRadius;
+    float velocityStrength;
 } SimConstants;
 
 typedef struct {
     SimFloat2 pos;
+    SimFloat2 delta;
     bool leftDown;
     bool rightDown;
 } MouseState;

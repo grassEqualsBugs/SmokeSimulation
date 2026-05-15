@@ -121,7 +121,8 @@
     c.fluidDensity = 1.f;
     c.width        = _width;
     c.height       = _height;
-    c.mouseRadius  = 0.08f;
+    c.mouseRadius = 0.08f;
+    c.velocityStrength = 2.f;
     _simConstantsBuffer = [_device newBufferWithBytes:&c
                                                length:sizeof(SimConstants)
                                               options:MTLResourceStorageModeShared];
@@ -153,7 +154,7 @@
     MTLSize threadgroup = MTLSizeMake(16, 16, 1);
 
     // inject (mouse input)
-    [self dispatch:encoder pipeline:_injectVelocityPipeline grid:grid threadgroup:threadgroup frameData:frameData];
+    [self dispatch:encoder pipeline:_injectVelocityPipeline grid:MTLSizeMake(_width+1, _height+1, 1) threadgroup:threadgroup frameData:frameData];
     [self dispatch:encoder pipeline:_injectSmokePipeline     grid:grid threadgroup:threadgroup frameData:frameData];
 
     // advect

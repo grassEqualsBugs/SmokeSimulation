@@ -36,7 +36,15 @@ fragment float4 fragment_main(
 
 // returns if a gid is inbounds
 bool in_bounds(uint2 gid, constant SimConstants& constants) {
-	return !(gid.x >= (uint)constants.width || gid.y >= (uint)constants.height);
+	return (gid.x < (uint)constants.width && gid.y < (uint)constants.height);
+}
+
+bool in_bounds_x1(uint2 gid, constant SimConstants& constants) {
+    return (gid.x <= (uint)constants.width && gid.y < (uint)constants.height);
+}
+
+bool in_bounds_y1(uint2 gid, constant SimConstants& constants) {
+    return (gid.x < (uint)constants.width && gid.y <= (uint)constants.height);
 }
 
 // returns the uv coords [0,1] for any given gid
@@ -66,7 +74,32 @@ kernel void inject_velocity(
     constant SimConstants& constants [[buffer(0)]],
     constant FrameData&    frame     [[buffer(1)]],
     uint2 gid [[thread_position_in_grid]])
-{}
+{
+    if (!frame.mouse.leftDown) return;
+
+    float2 mouse_uv_c = c_uv(frame.mouse.pos, constants);
+    float2 delta = frame.mouse.delta;
+
+    // Update velX (grid size: width+1 x height)
+    // velX[i, j] is at (i, j+0.5)
+    if (in_bounds_x1(gid, constants)) {
+        float2 uv = float2(gid.x / (float)constants.width, (gid.y + 0.5f) / (float)constants.height);
+        if (distance(c_uv(uv, constants), mouse_uv_c) <= constants.mouseRadius) {
+            float v = velX.read(gid).r + delta.x * constants.velocityStrength;
+            velX.write(float4(v, 0, 0, 0), gid);
+        }
+    }
+
+    // Update velY (grid size: width x height+1)
+    // velY[i, j] is at (i+0.5, j)
+    if (in_bounds_y1(gid, constants)) {
+        float2 uv = float2((gid.x + 0.5f) / (float)constants.width, gid.y / (float)constants.height);
+        if (distance(c_uv(uv, constants), mouse_uv_c) <= constants.mouseRadius) {
+            float v = velY.read(gid).r + delta.y * constants.velocityStrength;
+            velY.write(float4(v, 0, 0, 0), gid);
+        }
+    }
+}
 
 kernel void inject_smoke(
     texture2d<float, access::read_write> velX     [[texture(0)]],
@@ -81,10 +114,12 @@ kernel void inject_smoke(
     constant FrameData&    frame     [[buffer(1)]],
     uint2 gid [[thread_position_in_grid]])
 {
+    if (!frame.mouse.rightDown) return;
     if (!in_bounds(gid, constants)) return;
+
     float2 uv_c = get_uv_c(gid, constants);
     float2 mouse_uv_c = c_uv(frame.mouse.pos, constants);
-    if (distance(uv_c, mouse_uv_c) <= constants.mouseRadius && frame.mouse.rightDown) {
+    if (distance(uv_c, mouse_uv_c) <= constants.mouseRadius) {
     	smoke.write(float4(1), gid);
     }
 }

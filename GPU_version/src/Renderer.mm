@@ -23,6 +23,8 @@
 @implementation Renderer {
     id<MTLBuffer> _frameDataBuffer;
    	simd_float2   _mousePos;
+    simd_float2   _lastMousePos;
+    bool          _firstFrameMouse;
     bool          _leftDown;
     bool          _rightDown;
 
@@ -43,6 +45,8 @@
 
     _width = 1600;
     _height = 900;
+
+    _firstFrameMouse = true;
 
     _device       = view.device; // get access to the GPU
     _commandQueue = [_device newCommandQueue]; // "conveyer belt" for command buffers per frame
@@ -104,11 +108,19 @@
 
 // drawInMTKView method -- render loop for the program, called every frame
 - (void)drawInMTKView:(MTKView *)view {
+    if (_firstFrameMouse && _leftDown) {
+        _lastMousePos = _mousePos;
+        _firstFrameMouse = false;
+    }
+
     // update per-frame data on CPU side
     FrameData *frameData = (FrameData *)_frameDataBuffer.contents;
     frameData->mouse.pos = _mousePos;
+    frameData->mouse.delta = _mousePos - _lastMousePos;
     frameData->mouse.leftDown = _leftDown;
     frameData->mouse.rightDown = _rightDown;
+
+    _lastMousePos = _mousePos;
 
     id<MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer]; // list of commands to the gpu
 
