@@ -64,7 +64,7 @@
 
     // ---- set up rendering pipeline ----
     id<MTLFunction> vertexFn = [library newFunctionWithName:@"vertex_main"];
-    id<MTLFunction> fragmentFn = [library newFunctionWithName:@"fragment_main"];
+    id<MTLFunction> fragmentFn = [library newFunctionWithName:@"fragment_divergence"];
     MTLRenderPipelineDescriptor *pipeDesc = [[MTLRenderPipelineDescriptor alloc] init];
     pipeDesc.vertexFunction = vertexFn;
     pipeDesc.fragmentFunction = fragmentFn;
@@ -134,7 +134,7 @@
     if (renderPassDescriptor != nil) {
         id<MTLRenderCommandEncoder> renderEncoder = [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
         [renderEncoder setRenderPipelineState:_renderPipeline];
-        [renderEncoder setFragmentTexture:[_sim smokeTexture] atIndex:0];
+        [renderEncoder setFragmentTexture:[_sim divergenceTexture] atIndex:0];
         [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6];
         [renderEncoder endEncoding];
         // tell metal to display this frame's texture on screen when GPU finishes

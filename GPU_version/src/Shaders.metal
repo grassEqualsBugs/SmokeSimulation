@@ -22,12 +22,33 @@ vertex VertexOut vertex_main(uint vertexID [[vertex_id]]) {
     return out;
 }
 
-fragment float4 fragment_main(
+fragment float4 fragment_smoke(
 	VertexOut in [[stage_in]],
 	texture2d<float> texture [[texture(0)]])
 {
 	constexpr sampler s(filter::linear);
     return texture.sample(s, in.uv);
+}
+
+fragment float4 fragment_divergence(
+	VertexOut in [[stage_in]],
+	texture2d<float> texture [[texture(0)]])
+{
+	constexpr sampler s(filter::nearest);
+    float4 sampled = texture.sample(s, in.uv);
+
+    if (sampled.g > 0.5) { // is solid
+        return float4(10.0/255.0, 10.0/255.0, 10.0/255.0, 1.0);
+    }
+
+    float div = sampled.r;
+    float divergenceColorRange = 0.4f;
+    float t = min(abs(div) / divergenceColorRange, 1.0f);
+
+    float4 bg = float4(30.0/255.0, 30.0/255.0, 30.0/255.0, 1.0);
+    float4 target = (div < 0) ? float4(245.0/255.0, 66.0/255.0, 66.0/255.0, 1.0) : float4(66.0/255.0, 135.0/255.0, 245.0/255.0, 1.0);
+
+    return mix(bg, target, t);
 }
 
 // -----------------------
@@ -60,6 +81,14 @@ float2 c_uv(float2 uv, constant SimConstants& constants) {
 // x range is [0, aspect] y range is [0, 1]
 float2 get_uv_c(uint2 gid, constant SimConstants& constants) {
 	return c_uv(get_uv(gid, constants), constants);
+}
+
+uint2 gxp1(uint2 gid) {
+	return uint2(gid.x + 1, gid.y);
+}
+
+uint2 gyp1(uint2 gid) {
+	return uint2(gid.x, gid.y + 1);
 }
 
 kernel void inject_velocity(
@@ -124,7 +153,9 @@ kernel void advect_velX(
     texture2d<float, access::write> velXTemp  [[texture(3)]],
     constant SimConstants& constants          [[buffer(0)]],
     uint2 gid [[thread_position_in_grid]])
-{}
+{
+	velXTemp.write(velX.read(gid), gid); // temporary
+}
 
 kernel void advect_velY(
     texture2d<float, access::read>  velX      [[texture(0)]],
@@ -133,7 +164,9 @@ kernel void advect_velY(
     texture2d<float, access::write> velYTemp  [[texture(3)]],
     constant SimConstants& constants          [[buffer(0)]],
     uint2 gid [[thread_position_in_grid]])
-{}
+{
+	velYTemp.write(velY.read(gid), gid); // temporary
+}
 
 kernel void advect_smoke(
     texture2d<float, access::read>  velX      [[texture(0)]],
@@ -175,6 +208,25 @@ kernel void update_velocities(
     uint2 gid [[thread_position_in_grid]])
 {}
 
+kernel void update_divergence(
+	texture2d<float, access::read>  velX       [[texture(0)]],
+    texture2d<float, access::read>  velY       [[texture(1)]],
+    texture2d<float, access::write> divergence [[texture(2)]],
+    texture2d<uint,  access::read>    solids   [[texture(3)]],
+    constant SimConstants& constants [[buffer(0)]],
+    uint2 gid [[thread_position_in_grid]])
+{
+	if (!in_bounds(gid, constants)) return;
+	if (solids.read(gid).r == 1) {
+		divergence.write(float4(0), gid);
+		return;
+	}
+	float du = velX.read(gxp1(gid)).r - velX.read(gid).r;
+	float dv = velY.read(gyp1(gid)).r - velY.read(gid).r;
+	float div = (du + dv) / constants.cellSize;
+	divergence.write(float4(div, 0, 0, 0), gid);
+}
+
 kernel void init_solids(
     texture2d<uint, access::write> solids [[texture(0)]],
     constant SimConstants& constants      [[buffer(0)]],
@@ -187,13 +239,14 @@ kernel void init_solids(
 }
 
 kernel void clear_textures(
-    texture2d<float, access::write> velX     [[texture(0)]],
-    texture2d<float, access::write> velXTemp [[texture(1)]],
-    texture2d<float, access::write> velY     [[texture(2)]],
-    texture2d<float, access::write> velYTemp [[texture(3)]],
-    texture2d<float, access::write> pressure [[texture(4)]],
-    texture2d<float, access::write> smoke    [[texture(5)]],
-    texture2d<float, access::write> smokeTemp[[texture(6)]],
+    texture2d<float, access::write> velX       [[texture(0)]],
+    texture2d<float, access::write> velXTemp   [[texture(1)]],
+    texture2d<float, access::write> velY       [[texture(2)]],
+    texture2d<float, access::write> velYTemp   [[texture(3)]],
+    texture2d<float, access::write> pressure   [[texture(4)]],
+    texture2d<float, access::write> smoke      [[texture(5)]],
+    texture2d<float, access::write> smokeTemp  [[texture(6)]],
+    texture2d<float, access::write> divergence [[texture(7)]],
     constant SimConstants& constants      [[buffer(0)]],
     uint2 gid [[thread_position_in_grid]])
 {
@@ -209,5 +262,6 @@ kernel void clear_textures(
     	pressure.write(float4(0), gid);
     	smoke.write(float4(0), gid);
      	smokeTemp.write(float4(0), gid);
+      	divergence.write(float4(0), gid);
     }
 }

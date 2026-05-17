@@ -14,6 +14,7 @@
     id<MTLTexture> _smoke; // smokeMap analog from CPU version
     id<MTLTexture> _smokeTemp;
     id<MTLTexture> _solids;
+    id<MTLTexture> _divergence;
 
     // compute pipelines (one needed for each kernel)
     id<MTLComputePipelineState> _injectSmokePipeline; // pipeline for drawing smoke
@@ -23,10 +24,11 @@
     id<MTLComputePipelineState> _advectSmokePipeline;
     id<MTLComputePipelineState> _clearTexturesPipeline;
     id<MTLComputePipelineState> _initSolidsPipeline;
+    id<MTLComputePipelineState> _updateVelocitiesPipeline;
+    id<MTLComputePipelineState> _updateDivergencePipeline;
     // red black Gauss-Seidel
     id<MTLComputePipelineState> _gsRedPipeline;
     id<MTLComputePipelineState> _gsBlackPipeline;
-    id<MTLComputePipelineState> _updateVelocitiesPipeline;
 
     id<MTLBuffer> _simConstantsBuffer;
     int _width;
@@ -69,6 +71,7 @@
     _velY        = [self makeTextureWidth:_width     height:_height + 1];
     _velYTemp    = [self makeTextureWidth:_width     height:_height + 1];
     _pressure    = [self makeTextureWidth:_width     height:_height];
+    _divergence  = [self makeTextureWidth:_width     height:_height];
 
     // smoke textures use RGBA32Float
     MTLTextureDescriptor *smokeDesc =
@@ -110,6 +113,7 @@
     _gsRedPipeline            = [self makePipeline:library name:@"gs_red"];
     _gsBlackPipeline          = [self makePipeline:library name:@"gs_black"];
     _updateVelocitiesPipeline = [self makePipeline:library name:@"update_velocities"];
+    _updateDivergencePipeline = [self makePipeline:library name:@"update_divergence"];
     _clearTexturesPipeline    = [self makePipeline:library name:@"clear_textures"];
     _initSolidsPipeline       = [self makePipeline:library name:@"init_solids"];
 }
@@ -210,7 +214,14 @@
     [self dispatch:encoder
           pipeline:_updateVelocitiesPipeline
               grid:grid
-          textures:@[_velX, _velY, _pressure, _solids]
+          textures:@[ _velX, _velY, _pressure, _solids ]
+           buffers:@[ _simConstantsBuffer ]];
+
+    // update divergence texture
+    [self dispatch:encoder
+          pipeline:_updateDivergencePipeline
+              grid:grid
+          textures:@[_velX, _velY, _divergence, _solids]
            buffers:@[_simConstantsBuffer]];
 }
 
@@ -246,6 +257,10 @@
 
 - (id<MTLTexture>)smokeTexture {
     return _smoke;
+}
+
+- (id<MTLTexture>)divergenceTexture {
+    return _divergence;
 }
 
 @end
