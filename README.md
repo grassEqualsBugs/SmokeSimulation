@@ -10,8 +10,6 @@ make
 ./bin/smoke_gpu
 ```
 
----
-
 ## CPU Version (Raylib)
 ### Build and Run
 ```bash
@@ -20,7 +18,7 @@ make
 ./smoke_cpu
 ```
 
-### Controls
+## Controls
 - **Left Click**: Drag to apply velocity to the fluid.
 - **Right Click**: Click/Drag to emit smoke into the grid.
 - **Scroll Wheel**: Adjust brush radius.
