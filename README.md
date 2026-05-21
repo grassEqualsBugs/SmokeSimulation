@@ -26,6 +26,7 @@ make
 - **1**: Toggle Smoke visualization (Default).
 - **2**: Toggle Speed visualization.
 - **3**: Toggle Divergence (Pressure Error) visualization.
+- **B**: Toggle Solid Mode (GPU Version only).
 
 ---
 
