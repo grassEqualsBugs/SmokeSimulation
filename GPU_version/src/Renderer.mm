@@ -29,6 +29,7 @@
     bool          _firstFrameMouse;
     bool          _leftDown;
     bool          _rightDown;
+    bool          _isSolidMode;
 
 	id<MTLDevice> _device;
 	int           _width;
@@ -149,6 +150,8 @@
         _currentPipeline = _speedPipeline;
     } else if ([chars isEqualToString:@"3"]) {
         _currentPipeline = _divergencePipeline;
+    } else if ([chars isEqualToString:@"b"]) {
+        _isSolidMode = !_isSolidMode;
     } else if ([chars isEqualToString:@"r"]) {
         [_sim reset:_commandQueue];
     }
@@ -167,6 +170,7 @@
     frameData->mouse.delta = _mousePos - _lastMousePos;
     frameData->mouse.leftDown = _leftDown;
     frameData->mouse.rightDown = _rightDown;
+    frameData->mouse.isSolidMode = _isSolidMode;
 
     _lastMousePos = _mousePos;
 
@@ -185,6 +189,8 @@
 
         if (_currentPipeline == _smokePipeline) {
             [renderEncoder setFragmentTexture:[_sim smokeTexture] atIndex:0];
+            [renderEncoder setFragmentTexture:[_sim solidsTexture] atIndex:1];
+            [renderEncoder setFragmentBuffer:_sim.simConstantsBuffer offset:0 atIndex:0];
         } else if (_currentPipeline == _speedPipeline) {
             [renderEncoder setFragmentTexture:[_sim velXTexture] atIndex:0];
             [renderEncoder setFragmentTexture:[_sim velYTexture] atIndex:1];

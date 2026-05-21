@@ -41,7 +41,7 @@ fragment float4 fragment_speed(
 {
     uint2 pixelCoord = uint2(in.uv * float2(constants.width, constants.height));
     uint isSolid = solids.read(pixelCoord).r;
-    if (isSolid == 1) return float4(float3(0.05), 1.0);
+    if (isSolid == 1) return float4(0.3, 0.1, 0.4, 1.0);
 
     constexpr sampler s(filter::linear);
     float u = velX.sample(s, in.uv).r;
@@ -58,8 +58,14 @@ fragment float4 fragment_speed(
 
 fragment float4 fragment_smoke(
 	VertexOut in [[stage_in]],
-	texture2d<float> texture [[texture(0)]])
+	texture2d<float> texture [[texture(0)]],
+    texture2d<uint>  solids  [[texture(1)]],
+    constant SimConstants& constants [[buffer(0)]])
 {
+    uint2 pixelCoord = uint2(in.uv * float2(constants.width, constants.height));
+    uint isSolid = solids.read(pixelCoord).r;
+    if (isSolid == 1) return float4(0.3, 0.1, 0.4, 1.0);
+
 	constexpr sampler s(filter::linear);
     return texture.sample(s, in.uv);
 }
@@ -76,7 +82,7 @@ fragment float4 fragment_divergence(
     uint2 pixelCoord = uint2(in.uv * float2(constants.width, constants.height));
     uint isSolid = solids.read(pixelCoord).r;
 
-    if (isSolid == 1) return float4(float3(0.05), 1.0);
+    if (isSolid == 1) return float4(0.3, 0.1, 0.4, 1.0);
 
     float div = sampled.r;
     float divergenceColorRange = 0.4f;
@@ -157,7 +163,7 @@ kernel void inject_velocity(
     constant FrameData&    frame     [[buffer(1)]],
     uint2 gid [[thread_position_in_grid]])
 {
-    if (!frame.mouse.leftDown) return;
+    if (!frame.mouse.leftDown || frame.mouse.isSolidMode) return;
 
     float2 mouse_uv_c = c_uv(frame.mouse.pos, constants);
     float2 delta = frame.mouse.delta;
@@ -191,13 +197,34 @@ kernel void inject_smoke(
     constant FrameData&    frame     [[buffer(1)]],
     uint2 gid [[thread_position_in_grid]])
 {
-    if (!frame.mouse.rightDown) return;
+    if (!frame.mouse.rightDown || frame.mouse.isSolidMode) return;
     if (!in_bounds(gid, constants)) return;
 
     float2 uv_c = get_uv_c(gid, constants);
     float2 mouse_uv_c = c_uv(frame.mouse.pos, constants);
     if (distance(uv_c, mouse_uv_c) <= constants.mouseRadius) {
     	smoke.write(float4(1), gid);
+    }
+}
+
+kernel void inject_solids(
+    texture2d<uint, access::read_write> solids [[texture(0)]],
+    constant SimConstants& constants [[buffer(0)]],
+    constant FrameData&    frame     [[buffer(1)]],
+    uint2 gid [[thread_position_in_grid]])
+{
+    if (!frame.mouse.leftDown || !frame.mouse.isSolidMode) return;
+    if (!in_bounds(gid, constants)) return;
+
+    // Don't allow overwriting the border
+    bool isBorder = gid.x == 0 || gid.x == (uint)constants.width - 1
+                 || gid.y == 0 || gid.y == (uint)constants.height - 1;
+    if (isBorder) return;
+
+    float2 uv_c = get_uv_c(gid, constants);
+    float2 mouse_uv_c = c_uv(frame.mouse.pos, constants);
+    if (distance(uv_c, mouse_uv_c) <= constants.mouseRadius) {
+    	solids.write(uint4(1, 0, 0, 0), gid);
     }
 }
 
@@ -401,6 +428,7 @@ kernel void clear_textures(
     texture2d<float, access::write> smoke      [[texture(5)]],
     texture2d<float, access::write> smokeTemp  [[texture(6)]],
     texture2d<float, access::write> divergence [[texture(7)]],
+    texture2d<uint,  access::write> solids     [[texture(8)]],
     constant SimConstants& constants      [[buffer(0)]],
     uint2 gid [[thread_position_in_grid]])
 {
@@ -417,5 +445,9 @@ kernel void clear_textures(
     	smoke.write(float4(0), gid);
      	smokeTemp.write(float4(0), gid);
       	divergence.write(float4(0), gid);
+
+        bool isBorder = gid.x == 0 || gid.x == (uint)constants.width - 1
+                     || gid.y == 0 || gid.y == (uint)constants.height - 1;
+        solids.write(uint4(isBorder ? 1 : 0), gid);
     }
 }

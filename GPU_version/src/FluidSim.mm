@@ -19,6 +19,7 @@
     // compute pipelines (one needed for each kernel)
     id<MTLComputePipelineState> _injectSmokePipeline; // pipeline for drawing smoke
     id<MTLComputePipelineState> _injectVelocityPipeline; // pipeline for changing velocity
+    id<MTLComputePipelineState> _injectSolidsPipeline;
     id<MTLComputePipelineState> _advectVelXPipeline;
     id<MTLComputePipelineState> _advectVelYPipeline;
     id<MTLComputePipelineState> _advectSmokePipeline;
@@ -113,6 +114,7 @@
 - (void)buildPipelines:(id<MTLLibrary>)library {
     _injectVelocityPipeline   = [self makePipeline:library name:@"inject_velocity"];
     _injectSmokePipeline      = [self makePipeline:library name:@"inject_smoke"];
+    _injectSolidsPipeline     = [self makePipeline:library name:@"inject_solids"];
     _advectVelXPipeline       = [self makePipeline:library name:@"advect_velX"];
     _advectVelYPipeline       = [self makePipeline:library name:@"advect_velY"];
     _advectSmokePipeline      = [self makePipeline:library name:@"advect_smoke"];
@@ -166,7 +168,7 @@
 
 - (void)encodeSimStep:(id<MTLComputeCommandEncoder>)encoder
             frameData:(id<MTLBuffer>)frameData {
-    MTLSize grid        = MTLSizeMake(_width, _height, 1);
+    MTLSize grid = MTLSizeMake(_width, _height, 1);
 
     // inject (mouse input)
     [self dispatch:encoder
@@ -178,6 +180,11 @@
           pipeline:_injectSmokePipeline
               grid:grid
           textures:@[_smoke]
+           buffers:@[_simConstantsBuffer, frameData]];
+    [self dispatch:encoder
+          pipeline:_injectSolidsPipeline
+              grid:grid
+          textures:@[_solids]
            buffers:@[_simConstantsBuffer, frameData]];
 
     // advect velocities
@@ -258,7 +265,7 @@
     [self dispatch:enc
           pipeline:_clearTexturesPipeline
               grid:MTLSizeMake(_width + 1, _height + 1, 1)
-          textures:@[_velX, _velXTemp, _velY, _velYTemp, _pressure, _smoke, _smokeTemp, _divergence]
+          textures:@[_velX, _velXTemp, _velY, _velYTemp, _pressure, _smoke, _smokeTemp, _divergence, _solids]
            buffers:@[_simConstantsBuffer]];
 
     [enc endEncoding];
