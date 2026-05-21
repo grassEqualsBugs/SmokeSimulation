@@ -55,17 +55,25 @@ fragment float4 fragment_divergence(
 // ------ UV HELPERS -----
 // -----------------------
 
+uint2 gxp1(uint2 gid) {
+	return uint2(gid.x + 1, gid.y);
+}
+
+uint2 gyp1(uint2 gid) {
+	return uint2(gid.x, gid.y + 1);
+}
+
 // returns if a gid is inbounds
 bool in_bounds(uint2 gid, constant SimConstants& constants) {
-	return (gid.x < (uint)constants.width && gid.y < (uint)constants.height);
+	return (gid.x < (uint)constants.width && gid.y < (uint)constants.height && gid.x >= 0 && gid.y >= 0);
 }
 
 bool in_bounds_x1(uint2 gid, constant SimConstants& constants) {
-    return (gid.x <= (uint)constants.width && gid.y < (uint)constants.height);
+    return in_bounds(gxp1(gid), constants);
 }
 
 bool in_bounds_y1(uint2 gid, constant SimConstants& constants) {
-    return (gid.x < (uint)constants.width && gid.y <= (uint)constants.height);
+	return in_bounds(gyp1(gid), constants);
 }
 
 // returns the uv coords [0,1] for any given gid
@@ -81,14 +89,6 @@ float2 c_uv(float2 uv, constant SimConstants& constants) {
 // x range is [0, aspect] y range is [0, 1]
 float2 get_uv_c(uint2 gid, constant SimConstants& constants) {
 	return c_uv(get_uv(gid, constants), constants);
-}
-
-uint2 gxp1(uint2 gid) {
-	return uint2(gid.x + 1, gid.y);
-}
-
-uint2 gyp1(uint2 gid) {
-	return uint2(gid.x, gid.y + 1);
 }
 
 kernel void inject_velocity(
@@ -181,6 +181,55 @@ kernel void advect_smoke(
     smokeTemp.write(smoke.read(gid), gid);
 }
 
+// helpers for Gauss-Seidel stuff
+bool is_solid(
+	uint x,
+	uint y,
+	texture2d<uint, access::read>  solids,
+	constant SimConstants&         constants)
+{
+	if (!in_bounds(uint2(x, y), constants)) return true;
+	return solids.read(uint2(x, y)).x == 1;
+}
+
+float get_pressure(
+	uint x,
+	uint y,
+	texture2d<float, access::read_write>  pressure,
+	constant SimConstants&               constants)
+{
+	if (!in_bounds(uint2(x, y), constants)) return 0.f;
+	return pressure.read(uint2(x, y)).x;
+}
+
+void solve_pressure(
+	texture2d<float, access::read_write> pressure,
+    texture2d<float, access::read>       velX,
+    texture2d<float, access::read>       velY,
+    texture2d<uint,  access::read>       solids,
+    constant SimConstants& constants,
+    uint2 gid)
+{
+	float p_new = 0.f;
+	if (!is_solid(gid.x, gid.y, solids, constants)) {
+		int flow_t = !is_solid(gid.x, gid.y + 1, solids, constants);
+		int flow_b = !is_solid(gid.x, gid.y - 1, solids, constants);
+		int flow_l = !is_solid(gid.x - 1, gid.y, solids, constants);
+		int flow_r = !is_solid(gid.x + 1, gid.y, solids, constants);
+		int n = flow_t + flow_b + flow_l + flow_r;
+		if (n != 0) {
+			float del_velocity_sum = (velX.read(gxp1(gid)) - velX.read(gid) + velY.read(gyp1(gid)) - velY.read(gid)).x;
+			float p_sum = (flow_r ? get_pressure(gid.x + 1, gid.y, pressure, constants) : 0) +
+						  (flow_l ? get_pressure(gid.x - 1, gid.y, pressure, constants) : 0) +
+						  (flow_t ? get_pressure(gid.x, gid.y + 1, pressure, constants) : 0) +
+						  (flow_b ? get_pressure(gid.x, gid.y - 1, pressure, constants) : 0);
+			p_new = (p_sum - constants.fluidDensity * constants.cellSize * del_velocity_sum / constants.deltaTime) / n;
+		}
+	}
+	float p_old = pressure.read(gid).x;
+	pressure.write(p_old + (p_new - p_old) * constants.weightSOR, gid);
+}
+
 kernel void gs_red(
     texture2d<float, access::read_write> pressure [[texture(0)]],
     texture2d<float, access::read>       velX     [[texture(1)]],
@@ -188,7 +237,10 @@ kernel void gs_red(
     texture2d<uint,  access::read>       solids   [[texture(3)]],
     constant SimConstants& constants [[buffer(0)]],
     uint2 gid [[thread_position_in_grid]])
-{}
+{
+	if ((gid.x + gid.y) % 2 == 0) return;
+	solve_pressure(pressure, velX, velY, solids, constants, gid);
+}
 
 kernel void gs_black(
     texture2d<float, access::read_write> pressure [[texture(0)]],
@@ -197,7 +249,10 @@ kernel void gs_black(
     texture2d<uint,  access::read>       solids   [[texture(3)]],
     constant SimConstants& constants [[buffer(0)]],
     uint2 gid [[thread_position_in_grid]])
-{}
+{
+	if ((gid.x + gid.y) % 2 == 1) return;
+	solve_pressure(pressure, velX, velY, solids, constants, gid);
+}
 
 kernel void update_velocities(
     texture2d<float, access::read_write> velX     [[texture(0)]],

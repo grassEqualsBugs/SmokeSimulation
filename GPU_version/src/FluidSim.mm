@@ -126,7 +126,8 @@
     c.width        = _width;
     c.height       = _height;
     c.mouseRadius = 0.08f;
-    c.velocityStrength = 2.f;
+    c.velocityStrength = 1.f;
+    c.weightSOR = 1.0f;
     _simConstantsBuffer = [_device newBufferWithBytes:&c
                                                length:sizeof(SimConstants)
                                               options:MTLResourceStorageModeShared];
@@ -173,7 +174,7 @@
           textures:@[_smoke]
            buffers:@[_simConstantsBuffer, frameData]];
 
-    // advect
+    // advect velocities
     [self dispatch:encoder
           pipeline:_advectVelXPipeline
               grid:MTLSizeMake(_width+1, _height, 1)
@@ -188,6 +189,7 @@
            buffers:@[_simConstantsBuffer]];
     [self swapTextures:&_velY with:&_velYTemp];
 
+    // advect smoke
     [self dispatch:encoder
           pipeline:_advectSmokePipeline
               grid:grid
@@ -196,7 +198,7 @@
     [self swapTextures:&_smoke with:&_smokeTemp];
 
     // pressure solve
-    for (int i = 0; i < 40; i++) {
+    for (int i = 0; i < 50; i++) {
         [self dispatch:encoder
               pipeline:_gsRedPipeline
                   grid:grid
@@ -210,10 +212,10 @@
                buffers:@[_simConstantsBuffer]];
     }
 
-    // update velocities
+    // update velocities (dispatch enough threads to cover width+1 / height+1)
     [self dispatch:encoder
           pipeline:_updateVelocitiesPipeline
-              grid:grid
+              grid:MTLSizeMake(_width + 1, _height + 1, 1)
           textures:@[ _velX, _velY, _pressure, _solids ]
            buffers:@[ _simConstantsBuffer ]];
 
