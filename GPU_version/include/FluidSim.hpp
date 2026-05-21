@@ -12,7 +12,10 @@
                         height:(int)height;
 
 - (void)encodeSimStep:(id<MTLComputeCommandEncoder>)encoder frameData:(id<MTLBuffer>)frameData;
+- (void)reset:(id<MTLCommandQueue>)commandQueue;
 - (id<MTLTexture>)smokeTexture;
+- (id<MTLTexture>)velXTexture;
+- (id<MTLTexture>)velYTexture;
 - (id<MTLTexture>)divergenceTexture;
 - (id<MTLTexture>)solidsTexture;
 - (id<MTLBuffer>)simConstantsBuffer; // getter for Renderer

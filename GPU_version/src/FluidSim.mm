@@ -232,6 +232,10 @@
             buffers:@[_simConstantsBuffer]];
 }
 
+- (void)reset:(id<MTLCommandQueue>)commandQueue {
+    [self clearTextures:commandQueue];
+}
+
 - (void)initializeSolids:(id<MTLCommandQueue>)commandQueue {
     id<MTLCommandBuffer> cmd = [commandQueue commandBuffer];
     id<MTLComputeCommandEncoder> enc = [cmd computeCommandEncoder];
@@ -264,6 +268,14 @@
 
 - (id<MTLTexture>)smokeTexture {
     return _smoke;
+}
+
+- (id<MTLTexture>)velXTexture {
+    return _velX;
+}
+
+- (id<MTLTexture>)velYTexture {
+    return _velY;
 }
 
 - (id<MTLTexture>)divergenceTexture {

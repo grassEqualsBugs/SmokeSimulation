@@ -22,6 +22,40 @@ vertex VertexOut vertex_main(uint vertexID [[vertex_id]]) {
     return out;
 }
 
+// -----------------------
+// --- RENDER FRAGMENTS --
+// -----------------------
+
+float3 hsv2rgb(float3 c) {
+    float4 K = float4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+    float3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+    return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+}
+
+fragment float4 fragment_speed(
+    VertexOut in [[stage_in]],
+    texture2d<float> velX  [[texture(0)]],
+    texture2d<float> velY  [[texture(1)]],
+    texture2d<uint>  solids [[texture(2)]],
+    constant SimConstants& constants [[buffer(0)]])
+{
+    uint2 pixelCoord = uint2(in.uv * float2(constants.width, constants.height));
+    uint isSolid = solids.read(pixelCoord).r;
+    if (isSolid == 1) return float4(float3(0.05), 1.0);
+
+    constexpr sampler s(filter::linear);
+    float u = velX.sample(s, in.uv).r;
+    float v = velY.sample(s, in.uv).r;
+    float speed = length(float2(u, v));
+
+    float speedVisMax = 0.25f;
+    float speedT = min(speed / speedVisMax, 1.0f);
+    float hue = (1.0f - speedT) * (218.0f / 360.0f) + speedT * (10.0f / 360.0f);
+
+    float3 rgb = hsv2rgb(float3(hue, 0.7, 0.8));
+    return float4(rgb, 1.0);
+}
+
 fragment float4 fragment_smoke(
 	VertexOut in [[stage_in]],
 	texture2d<float> texture [[texture(0)]])
@@ -177,7 +211,7 @@ kernel void advect_velX(
 {
     if (!in_bounds_x1(gid, constants)) return;
 
-    float2 uv = float2(float(gid.x), float(gid.y) + 0.5f) / float2(constants.width + 1.f, constants.height);
+    float2 uv = float2(float(gid.x), float(gid.y) + 0.5f) / float2(constants.width, constants.height);
 
     float u = velX.sample(linearSampler, uv).r;
     float v = velY.sample(linearSampler, uv).r;
@@ -201,7 +235,7 @@ kernel void advect_velY(
     if (!in_bounds_y1(gid, constants)) return;
 
     // velY[i,j] is at (i+0.5, j)
-    float2 uv = float2(float(gid.x) + 0.5f, float(gid.y)) / float2(constants.width, constants.height + 1.f);
+    float2 uv = float2(float(gid.x) + 0.5f, float(gid.y)) / float2(constants.width, constants.height);
 
     float u = velX.sample(linearSampler, uv).r;
     float v = velY.sample(linearSampler, uv).r;

@@ -10,13 +10,15 @@
 @implementation SimView
 - (BOOL)acceptsFirstResponder { return YES; }
 
-- (void)mouseDown:(NSEvent *)e         { [(id<MouseHandler>)self.delegate mouseDown:e]; }
-- (void)mouseUp:(NSEvent *)e           { [(id<MouseHandler>)self.delegate mouseUp:e]; }
-- (void)mouseMoved:(NSEvent *)e        { [(id<MouseHandler>)self.delegate mouseMoved:e]; }
-- (void)mouseDragged:(NSEvent *)e      { [(id<MouseHandler>)self.delegate mouseDragged:e]; }
-- (void)rightMouseDown:(NSEvent *)e    { [(id<MouseHandler>)self.delegate rightMouseDown:e]; }
-- (void)rightMouseUp:(NSEvent *)e      { [(id<MouseHandler>)self.delegate rightMouseUp:e]; }
-- (void)rightMouseDragged:(NSEvent *)e { [(id<MouseHandler>)self.delegate rightMouseDragged:e]; }
+- (void)mouseDown:(NSEvent *)e         { [(id<InputHandler>)self.delegate mouseDown:e]; }
+- (void)mouseUp:(NSEvent *)e           { [(id<InputHandler>)self.delegate mouseUp:e]; }
+- (void)mouseMoved:(NSEvent *)e        { [(id<InputHandler>)self.delegate mouseMoved:e]; }
+- (void)mouseDragged:(NSEvent *)e      { [(id<InputHandler>)self.delegate mouseDragged:e]; }
+- (void)rightMouseDown:(NSEvent *)e    { [(id<InputHandler>)self.delegate rightMouseDown:e]; }
+- (void)rightMouseUp:(NSEvent *)e      { [(id<InputHandler>)self.delegate rightMouseUp:e]; }
+- (void)rightMouseDragged:(NSEvent *)e { [(id<InputHandler>)self.delegate rightMouseDragged:e]; }
+- (void)keyDown:(NSEvent *)e           { [(id<InputHandler>)self.delegate keyDown:e]; }
+- (void)keyUp:(NSEvent *)e             { [(id<InputHandler>)self.delegate keyUp:e]; }
 @end
 
 // Actual implementation of renderer
@@ -34,7 +36,11 @@
 
 	id<MTLCommandQueue>         _commandQueue;
 	id<MTLComputePipelineState> _computePipeline;
-	id<MTLRenderPipelineState>  _renderPipeline;
+	id<MTLRenderPipelineState>  _smokePipeline;
+    id<MTLRenderPipelineState>  _speedPipeline;
+    id<MTLRenderPipelineState>  _divergencePipeline;
+    id<MTLRenderPipelineState>  _currentPipeline;
+
 	FluidSim*                   _sim;
 }
 
@@ -69,15 +75,27 @@
                                        width:simWidth
                                       height:simHeight];
 
-    // ---- set up rendering pipeline ----
+    // ---- set up rendering pipelines ----
     id<MTLFunction> vertexFn = [library newFunctionWithName:@"vertex_main"];
-    id<MTLFunction> fragmentFn = [library newFunctionWithName:@"fragment_smoke"];
     MTLRenderPipelineDescriptor *pipeDesc = [[MTLRenderPipelineDescriptor alloc] init];
     pipeDesc.vertexFunction = vertexFn;
-    pipeDesc.fragmentFunction = fragmentFn;
     pipeDesc.colorAttachments[0].pixelFormat = view.colorPixelFormat;
+
     NSError *error = nil;
-    _renderPipeline = [_device newRenderPipelineStateWithDescriptor:pipeDesc error:&error];
+
+    // Smoke Pipeline
+    pipeDesc.fragmentFunction = [library newFunctionWithName:@"fragment_smoke"];
+    _smokePipeline = [_device newRenderPipelineStateWithDescriptor:pipeDesc error:&error];
+
+    // Speed Pipeline
+    pipeDesc.fragmentFunction = [library newFunctionWithName:@"fragment_speed"];
+    _speedPipeline = [_device newRenderPipelineStateWithDescriptor:pipeDesc error:&error];
+
+    // Divergence Pipeline
+    pipeDesc.fragmentFunction = [library newFunctionWithName:@"fragment_divergence"];
+    _divergencePipeline = [_device newRenderPipelineStateWithDescriptor:pipeDesc error:&error];
+
+    _currentPipeline = _smokePipeline;
 
     return self;
 }
@@ -113,6 +131,29 @@
     [self updateMousePos:event];
 }
 
+- (void)keyDown:(NSEvent *)event {
+    [self handleKeyEvent:event isDown:YES];
+}
+
+- (void)keyUp:(NSEvent *)event {
+    [self handleKeyEvent:event isDown:NO];
+}
+
+- (void)handleKeyEvent:(NSEvent *)event isDown:(BOOL)isDown {
+    if (!isDown) return;
+
+    NSString *chars = [event charactersIgnoringModifiers];
+    if ([chars isEqualToString:@"1"]) {
+        _currentPipeline = _smokePipeline;
+    } else if ([chars isEqualToString:@"2"]) {
+        _currentPipeline = _speedPipeline;
+    } else if ([chars isEqualToString:@"3"]) {
+        _currentPipeline = _divergencePipeline;
+    } else if ([chars isEqualToString:@"r"]) {
+        [_sim reset:_commandQueue];
+    }
+}
+
 // drawInMTKView method -- render loop for the program, called every frame
 - (void)drawInMTKView:(MTKView *)view {
     if (_firstFrameMouse && _leftDown) {
@@ -140,13 +181,20 @@
     MTLRenderPassDescriptor *renderPassDescriptor = view.currentRenderPassDescriptor; // what pass i'm rendering to
     if (renderPassDescriptor != nil) {
         id<MTLRenderCommandEncoder> renderEncoder = [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
-        [renderEncoder setRenderPipelineState:_renderPipeline];
+        [renderEncoder setRenderPipelineState:_currentPipeline];
 
-        [renderEncoder setFragmentTexture:[_sim smokeTexture] atIndex:0];
-        // [renderEncoder setFragmentTexture:[_sim solidsTexture] atIndex:1];
-        // [renderEncoder setFragmentBuffer:_sim.simConstantsBuffer
-        //                           offset:0
-        //                          atIndex:0];
+        if (_currentPipeline == _smokePipeline) {
+            [renderEncoder setFragmentTexture:[_sim smokeTexture] atIndex:0];
+        } else if (_currentPipeline == _speedPipeline) {
+            [renderEncoder setFragmentTexture:[_sim velXTexture] atIndex:0];
+            [renderEncoder setFragmentTexture:[_sim velYTexture] atIndex:1];
+            [renderEncoder setFragmentTexture:[_sim solidsTexture] atIndex:2];
+            [renderEncoder setFragmentBuffer:_sim.simConstantsBuffer offset:0 atIndex:0];
+        } else if (_currentPipeline == _divergencePipeline) {
+            [renderEncoder setFragmentTexture:[_sim divergenceTexture] atIndex:0];
+            [renderEncoder setFragmentTexture:[_sim solidsTexture] atIndex:1];
+            [renderEncoder setFragmentBuffer:_sim.simConstantsBuffer offset:0 atIndex:0];
+        }
 
         [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6];
         [renderEncoder endEncoding];
