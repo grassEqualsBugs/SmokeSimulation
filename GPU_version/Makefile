@@ -1,6 +1,6 @@
 CC = clang++
 CFLAGS = -Wall -Wextra -std=c++17
-LDFLAGS = -framework Metal -framework MetalKit -framework Cocoa
+LDFLAGS = -framework Metal -framework MetalKit -framework Cocoa -framework QuartzCore
 
 SRC_DIR = src
 OBJ_DIR = obj

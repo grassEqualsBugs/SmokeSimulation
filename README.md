@@ -21,12 +21,13 @@ make
 ## Controls
 - **Left Click**: Drag to apply velocity to the fluid.
 - **Right Click**: Click/Drag to emit smoke into the grid.
-- **Scroll Wheel**: Adjust brush radius.
+- **Scroll Wheel**: Adjust brush radius (CPU version).
 - **R**: Reset the simulation.
 - **1**: Toggle Smoke visualization (Default).
 - **2**: Toggle Speed visualization.
 - **3**: Toggle Divergence (Pressure Error) visualization.
-- **B**: Toggle Solid Mode (GPU Version only).
+- **B**: Toggle Solid Mode (GPU Version).
+
 
 ---
 

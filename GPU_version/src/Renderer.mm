@@ -31,12 +31,15 @@
     bool          _rightDown;
     bool          _isSolidMode;
 
+    NSTextField  *_fpsLabel;
+    NSTimeInterval _lastFrameTime;
+    double         _smoothedFPS;
+
 	id<MTLDevice> _device;
 	int           _width;
 	int           _height;
 
 	id<MTLCommandQueue>         _commandQueue;
-	id<MTLComputePipelineState> _computePipeline;
 	id<MTLRenderPipelineState>  _smokePipeline;
     id<MTLRenderPipelineState>  _speedPipeline;
     id<MTLRenderPipelineState>  _divergencePipeline;
@@ -97,6 +100,15 @@
     _divergencePipeline = [_device newRenderPipelineStateWithDescriptor:pipeDesc error:&error];
 
     _currentPipeline = _smokePipeline;
+
+    _fpsLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(10, view.frame.size.height - 30, 200, 20)];
+    [_fpsLabel setEditable:NO];
+    [_fpsLabel setSelectable:NO];
+    [_fpsLabel setBezeled:NO];
+    [_fpsLabel setDrawsBackground:NO];
+    [_fpsLabel setTextColor:[NSColor whiteColor]];
+    [_fpsLabel setFont:[NSFont monospacedDigitSystemFontOfSize:14 weight:NSFontWeightRegular]];
+    [view addSubview:_fpsLabel];
 
     return self;
 }
@@ -159,7 +171,19 @@
 
 // drawInMTKView method -- render loop for the program, called every frame
 - (void)drawInMTKView:(MTKView *)view {
+    NSTimeInterval currentTime = CACurrentMediaTime();
+    double dt = currentTime - _lastFrameTime;
+    _lastFrameTime = currentTime;
+
+    if (dt > 0 && dt < 1.0) {
+        double instantFPS = 1.0 / dt;
+        // Exponential smoothing: 95% old value, 5% new value
+        _smoothedFPS = (_smoothedFPS * 0.95) + (instantFPS * 0.05);
+        _fpsLabel.stringValue = [NSString stringWithFormat:@"FPS: %.0f", _smoothedFPS];
+    }
+
     if (_firstFrameMouse && _leftDown) {
+
         _lastMousePos = _mousePos;
         _firstFrameMouse = false;
     }

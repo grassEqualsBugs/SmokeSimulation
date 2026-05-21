@@ -25,6 +25,7 @@ int main(int argc, const char *argv[]) {
     id<MTLDevice> device = MTLCreateSystemDefaultDevice(); // get default GPU
     SimView *view = [[SimView alloc] initWithFrame:window.contentView.bounds device:device];
     view.clearColor = MTLClearColorMake(0.1, 0.1, 0.1, 1.0);
+    view.preferredFramesPerSecond = 60; // Hint for VSync
     [window setContentView:view];
     [window setAcceptsMouseMovedEvents:YES];
 
