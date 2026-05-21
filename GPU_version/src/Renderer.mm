@@ -45,7 +45,7 @@
 
     _width = 1600;
     _height = 900;
-    float simScale = 4.0f;
+    float simScale = 3.0f;
     int simWidth = _width / simScale;
     int simHeight = _height / simScale;
 
@@ -71,7 +71,7 @@
 
     // ---- set up rendering pipeline ----
     id<MTLFunction> vertexFn = [library newFunctionWithName:@"vertex_main"];
-    id<MTLFunction> fragmentFn = [library newFunctionWithName:@"fragment_divergence"];
+    id<MTLFunction> fragmentFn = [library newFunctionWithName:@"fragment_smoke"];
     MTLRenderPipelineDescriptor *pipeDesc = [[MTLRenderPipelineDescriptor alloc] init];
     pipeDesc.vertexFunction = vertexFn;
     pipeDesc.fragmentFunction = fragmentFn;
@@ -142,11 +142,11 @@
         id<MTLRenderCommandEncoder> renderEncoder = [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
         [renderEncoder setRenderPipelineState:_renderPipeline];
 
-        [renderEncoder setFragmentTexture:[_sim divergenceTexture] atIndex:0];
-        [renderEncoder setFragmentTexture:[_sim solidsTexture] atIndex:1];
-        [renderEncoder setFragmentBuffer:_sim.simConstantsBuffer
-                                  offset:0
-                                 atIndex:0];
+        [renderEncoder setFragmentTexture:[_sim smokeTexture] atIndex:0];
+        // [renderEncoder setFragmentTexture:[_sim solidsTexture] atIndex:1];
+        // [renderEncoder setFragmentBuffer:_sim.simConstantsBuffer
+        //                           offset:0
+        //                          atIndex:0];
 
         [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6];
         [renderEncoder endEncoding];

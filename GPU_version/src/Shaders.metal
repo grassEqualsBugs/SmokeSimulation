@@ -183,7 +183,7 @@ kernel void advect_velX(
     float v = velY.sample(linearSampler, uv).r;
     float2 vel = float2(u, v);
 
-    float2 dt_uv = constants.deltaTime * vel / float2(constants.width, constants.height);
+    float2 dt_uv = constants.deltaTime * vel / (float2(constants.width, constants.height) * constants.cellSize);
     float2 prev_uv = uv - dt_uv;
 
     float val = velX.sample(linearSampler, prev_uv).r;
@@ -207,7 +207,7 @@ kernel void advect_velY(
     float v = velY.sample(linearSampler, uv).r;
     float2 vel = float2(u, v);
 
-    float2 dt_uv = constants.deltaTime * vel / float2(constants.width, constants.height);
+    float2 dt_uv = constants.deltaTime * vel / (float2(constants.width, constants.height) * constants.cellSize);
     float2 prev_uv = uv - dt_uv;
 
     float val = velY.sample(linearSampler, prev_uv).r;
@@ -234,7 +234,7 @@ kernel void advect_smoke(
     float v = velY.sample(linearSampler, uv).r;
     float2 vel = float2(u, v);
 
-    float2 dt_uv = constants.deltaTime * vel / float2(constants.width, constants.height);
+    float2 dt_uv = constants.deltaTime * vel / (float2(constants.width, constants.height) * constants.cellSize);
     float2 prev_uv = uv - dt_uv;
 
     float4 s = smoke.sample(linearSampler, prev_uv);
@@ -277,6 +277,7 @@ kernel void gs_red(
     constant SimConstants& constants [[buffer(0)]],
     uint2 gid [[thread_position_in_grid]])
 {
+	if (!in_bounds(gid, constants)) return;
 	if ((gid.x + gid.y) % 2 == 0) return;
 	solve_pressure(pressure, velX, velY, solids, constants, gid);
 }
@@ -289,6 +290,7 @@ kernel void gs_black(
     constant SimConstants& constants [[buffer(0)]],
     uint2 gid [[thread_position_in_grid]])
 {
+	if (!in_bounds(gid, constants)) return;
 	if ((gid.x + gid.y) % 2 == 1) return;
 	solve_pressure(pressure, velX, velY, solids, constants, gid);
 }
@@ -309,7 +311,7 @@ kernel void update_velocities(
             float p_r = pressure.read(gid).x;
             float p_l = pressure.read(uint2(gid.x - 1, gid.y)).x;
             float v = velX.read(gid).r - constants.deltaTime / (constants.fluidDensity * constants.cellSize) * (p_r - p_l);
-            velX.write(float4(v, 0, 0, 0), gid);
+            velX.write(float4(v), gid);
         }
     }
 
@@ -321,7 +323,7 @@ kernel void update_velocities(
             float p_t = pressure.read(gid).x;
             float p_b = pressure.read(uint2(gid.x, gid.y - 1)).x;
             float v = velY.read(gid).r - constants.deltaTime / (constants.fluidDensity * constants.cellSize) * (p_t - p_b);
-            velY.write(float4(v, 0, 0, 0), gid);
+            velY.write(float4(v), gid);
         }
     }
 }

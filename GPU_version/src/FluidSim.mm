@@ -132,8 +132,8 @@
     c.width        = _width;
     c.height       = _height;
     c.mouseRadius = 0.08f;
-    c.velocityStrength = 1.f;
-    c.weightSOR = 1.f;
+    c.velocityStrength = 1.8f;
+    c.weightSOR = 1.7f;
     _simConstantsBuffer = [_device newBufferWithBytes:&c
                                                length:sizeof(SimConstants)
                                               options:MTLResourceStorageModeShared];
@@ -174,7 +174,6 @@
               grid:MTLSizeMake(_width+1, _height+1, 1)
           textures:@[_velX, _velY]
            buffers:@[_simConstantsBuffer, frameData]];
-
     [self dispatch:encoder
           pipeline:_injectSmokePipeline
               grid:grid
@@ -227,10 +226,10 @@
 
     // update divergence texture
     [self dispatch:encoder
-          pipeline:_updateDivergencePipeline
-              grid:grid
-          textures:@[_velX, _velY, _divergence, _solids]
-           buffers:@[_simConstantsBuffer]];
+            pipeline:_updateDivergencePipeline
+                grid:grid
+            textures:@[_velX, _velY, _divergence, _solids]
+            buffers:@[_simConstantsBuffer]];
 }
 
 - (void)initializeSolids:(id<MTLCommandQueue>)commandQueue {
@@ -255,7 +254,7 @@
     [self dispatch:enc
           pipeline:_clearTexturesPipeline
               grid:MTLSizeMake(_width + 1, _height + 1, 1)
-          textures:@[_velX, _velXTemp, _velY, _velYTemp, _pressure, _smoke, _smokeTemp]
+          textures:@[_velX, _velXTemp, _velY, _velYTemp, _pressure, _smoke, _smokeTemp, _divergence]
            buffers:@[_simConstantsBuffer]];
 
     [enc endEncoding];
