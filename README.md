@@ -34,6 +34,6 @@ make
 ## Technical Details
 I followed the [course notes](https://www.cs.ubc.ca/~rbridson/fluidsimulation/fluids_notes.pdf) from the University of British Columbia on Fluid Simulation to learn the algorithms for this simulation.
 
-This project solves the incompressible [Navier-Stokes equations](https://en.wikipedia.org/wiki/Navier%E2%80%93Stokes_equations) ($a = -\frac{\nabla p}{\rho}, \nabla \cdot u = 0$) using the projection method on a [staggered MAC grid](https://en.wikipedia.org/wiki/Staggered_grid).
+This project solves [Navier-Stokes equations for incompressible fluids](https://en.wikipedia.org/wiki/Navier%E2%80%93Stokes_equations) ($a = -\frac{\nabla p}{\rho}, \nabla \cdot u = 0$) using the projection method on a [staggered MAC grid](https://en.wikipedia.org/wiki/Staggered_grid).
 
 The pressure Poisson equation is solved using [Gauss-Seidel](https://en.wikipedia.org/wiki/Gauss%E2%80%93Seidel_method) iteration. To accelerate convergence, [Successive Over-Relaxation](https://en.wikipedia.org/wiki/Successive_over-relaxation) (SOR) is applied to each iteration. The GPU version specifically utilizes [Red-Black Gauss-Seidel](https://en.wikipedia.org/wiki/Gauss%E2%80%93Seidel_method#Parallel_version) to enable parallel execution across the grid. Advection for both velocity and smoke is handled via a [semi-Lagrangian](https://en.wikipedia.org/wiki/Semi-Lagrangian_scheme) scheme with [bilinear interpolation](https://en.wikipedia.org/wiki/Bilinear_interpolation).
