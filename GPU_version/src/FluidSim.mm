@@ -204,7 +204,7 @@
     [self swapTextures:&_smoke with:&_smokeTemp];
 
     // pressure solve
-    for (int i = 0; i < 200; i++) {
+    for (int i = 0; i < 350; i++) {
         [self dispatch:encoder
               pipeline:_gsRedPipeline
                   grid:grid

@@ -177,7 +177,7 @@ kernel void advect_velX(
 {
     if (!in_bounds_x1(gid, constants)) return;
 
-    float2 uv = float2(float(gid.x), float(gid.y) + 0.5f) / float2(constants.width, constants.height);
+    float2 uv = float2(float(gid.x), float(gid.y) + 0.5f) / float2(constants.width + 1.f, constants.height);
 
     float u = velX.sample(linearSampler, uv).r;
     float v = velY.sample(linearSampler, uv).r;
@@ -201,7 +201,7 @@ kernel void advect_velY(
     if (!in_bounds_y1(gid, constants)) return;
 
     // velY[i,j] is at (i+0.5, j)
-    float2 uv = float2(float(gid.x) + 0.5f, float(gid.y)) / float2(constants.width, constants.height);
+    float2 uv = float2(float(gid.x) + 0.5f, float(gid.y)) / float2(constants.width, constants.height + 1.f);
 
     float u = velX.sample(linearSampler, uv).r;
     float v = velY.sample(linearSampler, uv).r;
