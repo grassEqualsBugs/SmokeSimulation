@@ -45,6 +45,9 @@
 
     _width = 1600;
     _height = 900;
+    float simScale = 4.0f;
+    int simWidth = _width / simScale;
+    int simHeight = _height / simScale;
 
     _firstFrameMouse = true;
 
@@ -60,7 +63,11 @@
 
     _frameDataBuffer = [_device newBufferWithLength:sizeof(FrameData)
                                 options:MTLResourceStorageModeShared];
-    _sim = [[FluidSim alloc] initWithDevice:_device library:library commandQueue:_commandQueue];
+    _sim = [[FluidSim alloc] initWithDevice:_device
+                                     library:library
+                                commandQueue:_commandQueue
+                                       width:simWidth
+                                      height:simHeight];
 
     // ---- set up rendering pipeline ----
     id<MTLFunction> vertexFn = [library newFunctionWithName:@"vertex_main"];
@@ -134,7 +141,13 @@
     if (renderPassDescriptor != nil) {
         id<MTLRenderCommandEncoder> renderEncoder = [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
         [renderEncoder setRenderPipelineState:_renderPipeline];
+
         [renderEncoder setFragmentTexture:[_sim divergenceTexture] atIndex:0];
+        [renderEncoder setFragmentTexture:[_sim solidsTexture] atIndex:1];
+        [renderEncoder setFragmentBuffer:_sim.simConstantsBuffer
+                                  offset:0
+                                 atIndex:0];
+
         [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6];
         [renderEncoder endEncoding];
         // tell metal to display this frame's texture on screen when GPU finishes

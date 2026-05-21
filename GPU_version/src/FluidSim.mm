@@ -37,13 +37,15 @@
 
 - (instancetype)initWithDevice:(id<MTLDevice>)device
                        library:(id<MTLLibrary>)library
-                  commandQueue:(id<MTLCommandQueue>)commandQueue {
+                  commandQueue:(id<MTLCommandQueue>)commandQueue
+                         width:(int)width
+                        height:(int)height {
     self = [super init];
     if (!self) return nil;
 
     _device = device;
-    _width  = 1600;
-    _height = 900;
+    _width  = width;
+    _height = height;
 
     [self allocateTextures];
     [self buildPipelines:library];
@@ -52,6 +54,10 @@
     [self initializeSolids:commandQueue];
 
     return self;
+}
+
+- (id<MTLBuffer>)simConstantsBuffer {
+    return _simConstantsBuffer;
 }
 
 - (id<MTLTexture>)makeTextureWidth:(int)w height:(int)h {
@@ -127,7 +133,7 @@
     c.height       = _height;
     c.mouseRadius = 0.08f;
     c.velocityStrength = 1.f;
-    c.weightSOR = 1.0f;
+    c.weightSOR = 1.f;
     _simConstantsBuffer = [_device newBufferWithBytes:&c
                                                length:sizeof(SimConstants)
                                               options:MTLResourceStorageModeShared];
@@ -149,6 +155,7 @@
 
     MTLSize threadgroup = MTLSizeMake(16, 16, 1);
     [encoder dispatchThreads:grid threadsPerThreadgroup:threadgroup];
+    [encoder memoryBarrierWithScope:MTLBarrierScopeTextures];
 }
 
 - (void)swapTextures:(id<MTLTexture> *)a with:(id<MTLTexture> *)b {
@@ -198,13 +205,12 @@
     [self swapTextures:&_smoke with:&_smokeTemp];
 
     // pressure solve
-    for (int i = 0; i < 50; i++) {
+    for (int i = 0; i < 200; i++) {
         [self dispatch:encoder
               pipeline:_gsRedPipeline
                   grid:grid
               textures:@[_pressure, _velX, _velY, _solids]
                buffers:@[_simConstantsBuffer]];
-
         [self dispatch:encoder
               pipeline:_gsBlackPipeline
                   grid:grid
@@ -263,6 +269,10 @@
 
 - (id<MTLTexture>)divergenceTexture {
     return _divergence;
+}
+
+- (id<MTLTexture>)solidsTexture {
+    return _solids;
 }
 
 @end

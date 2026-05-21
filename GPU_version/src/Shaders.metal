@@ -31,23 +31,25 @@ fragment float4 fragment_smoke(
 }
 
 fragment float4 fragment_divergence(
-	VertexOut in [[stage_in]],
-	texture2d<float> texture [[texture(0)]])
+    VertexOut in [[stage_in]],
+    texture2d<float> texture       [[texture(0)]],
+    texture2d<uint>  solids        [[texture(1)]],
+    constant SimConstants& constants [[buffer(0)]])
 {
-	constexpr sampler s(filter::nearest);
+    constexpr sampler s(filter::linear);
     float4 sampled = texture.sample(s, in.uv);
 
-    if (sampled.g > 0.5) { // is solid
-        return float4(10.0/255.0, 10.0/255.0, 10.0/255.0, 1.0);
-    }
+    uint2 pixelCoord = uint2(in.uv * float2(constants.width, constants.height));
+    uint isSolid = solids.read(pixelCoord).r;
+
+    if (isSolid == 1) return float4(float3(0.05), 1.0);
 
     float div = sampled.r;
     float divergenceColorRange = 0.4f;
     float t = min(abs(div) / divergenceColorRange, 1.0f);
-
-    float4 bg = float4(30.0/255.0, 30.0/255.0, 30.0/255.0, 1.0);
-    float4 target = (div < 0) ? float4(245.0/255.0, 66.0/255.0, 66.0/255.0, 1.0) : float4(66.0/255.0, 135.0/255.0, 245.0/255.0, 1.0);
-
+    float4 bg = float4(float3(0.12), 1.0);
+    float4 target = (div < 0) ? float4(0.96, 0.26, 0.26, 1.0)
+                               : float4(0.26, 0.53, 0.96, 1.0);
     return mix(bg, target, t);
 }
 
@@ -55,6 +57,7 @@ fragment float4 fragment_divergence(
 // ------ UV HELPERS -----
 // -----------------------
 
+constexpr sampler linearSampler(filter::linear, address::clamp_to_edge);
 uint2 gxp1(uint2 gid) {
 	return uint2(gid.x + 1, gid.y);
 }
@@ -69,11 +72,12 @@ bool in_bounds(uint2 gid, constant SimConstants& constants) {
 }
 
 bool in_bounds_x1(uint2 gid, constant SimConstants& constants) {
-    return in_bounds(gxp1(gid), constants);
+	return (gid.x <= (uint)constants.width && gid.y < (uint)constants.height && gid.x >= 0 && gid.y >= 0);
+
 }
 
 bool in_bounds_y1(uint2 gid, constant SimConstants& constants) {
-	return in_bounds(gyp1(gid), constants);
+	return (gid.x < (uint)constants.width && gid.y <= (uint)constants.height && gid.x >= 0 && gid.y >= 0);
 }
 
 // returns the uv coords [0,1] for any given gid
@@ -83,12 +87,33 @@ float2 get_uv(uint2 gid, constant SimConstants& constants) {
 
 // corrects UV coordinates for stretch/squash
 float2 c_uv(float2 uv, constant SimConstants& constants) {
-	return float2(uv.x * constants.width / constants.height, uv.y);
+	return float2(uv.x * (float)constants.width / (float)constants.height, uv.y);
 }
 
 // x range is [0, aspect] y range is [0, 1]
 float2 get_uv_c(uint2 gid, constant SimConstants& constants) {
 	return c_uv(get_uv(gid, constants), constants);
+}
+
+// helpers for Gauss-Seidel stuff
+bool is_solid(
+	uint x,
+	uint y,
+	texture2d<uint, access::read>  solids,
+	constant SimConstants&         constants)
+{
+	if (!in_bounds(uint2(x, y), constants)) return true;
+	return solids.read(uint2(x, y)).x == 1;
+}
+
+float get_pressure(
+	uint x,
+	uint y,
+	texture2d<float, access::read_write>  pressure,
+	constant SimConstants&               constants)
+{
+	if (!in_bounds(uint2(x, y), constants)) return 0.f;
+	return pressure.read(uint2(x, y)).x;
 }
 
 kernel void inject_velocity(
@@ -103,8 +128,6 @@ kernel void inject_velocity(
     float2 mouse_uv_c = c_uv(frame.mouse.pos, constants);
     float2 delta = frame.mouse.delta;
 
-    // Update velX (grid size: width+1 x height)
-    // velX[i, j] is at (i, j+0.5)
     if (in_bounds_x1(gid, constants)) {
         float2 uv = float2(
         	gid.x / (float)constants.width,
@@ -116,8 +139,6 @@ kernel void inject_velocity(
         }
     }
 
-    // Update velY (grid size: width x height+1)
-    // velY[i, j] is at (i+0.5, j)
     if (in_bounds_y1(gid, constants)) {
         float2 uv = float2(
         	(gid.x + 0.5f) / (float)constants.width,
@@ -147,59 +168,77 @@ kernel void inject_smoke(
 }
 
 kernel void advect_velX(
-    texture2d<float, access::read>  velX      [[texture(0)]],
-    texture2d<float, access::read>  velY      [[texture(1)]],
-    texture2d<uint,  access::read>  solids    [[texture(2)]],
-    texture2d<float, access::write> velXTemp  [[texture(3)]],
+    texture2d<float, access::sample> velX      [[texture(0)]],
+    texture2d<float, access::sample> velY      [[texture(1)]],
+    texture2d<uint,  access::read>   solids    [[texture(2)]],
+    texture2d<float, access::write>  velXTemp  [[texture(3)]],
     constant SimConstants& constants          [[buffer(0)]],
     uint2 gid [[thread_position_in_grid]])
 {
-	velXTemp.write(velX.read(gid), gid); // temporary
+    if (!in_bounds_x1(gid, constants)) return;
+
+    float2 uv = float2(float(gid.x), float(gid.y) + 0.5f) / float2(constants.width, constants.height);
+
+    float u = velX.sample(linearSampler, uv).r;
+    float v = velY.sample(linearSampler, uv).r;
+    float2 vel = float2(u, v);
+
+    float2 dt_uv = constants.deltaTime * vel / float2(constants.width, constants.height);
+    float2 prev_uv = uv - dt_uv;
+
+    float val = velX.sample(linearSampler, prev_uv).r;
+    velXTemp.write(float4(val, 0, 0, 0), gid);
 }
 
 kernel void advect_velY(
-    texture2d<float, access::read>  velX      [[texture(0)]],
-    texture2d<float, access::read>  velY      [[texture(1)]],
-    texture2d<uint,  access::read>  solids    [[texture(2)]],
-    texture2d<float, access::write> velYTemp  [[texture(3)]],
+    texture2d<float, access::sample> velX      [[texture(0)]],
+    texture2d<float, access::sample> velY      [[texture(1)]],
+    texture2d<uint,  access::read>   solids    [[texture(2)]],
+    texture2d<float, access::write>  velYTemp  [[texture(3)]],
     constant SimConstants& constants          [[buffer(0)]],
     uint2 gid [[thread_position_in_grid]])
 {
-	velYTemp.write(velY.read(gid), gid); // temporary
+    if (!in_bounds_y1(gid, constants)) return;
+
+    // velY[i,j] is at (i+0.5, j)
+    float2 uv = float2(float(gid.x) + 0.5f, float(gid.y)) / float2(constants.width, constants.height);
+
+    float u = velX.sample(linearSampler, uv).r;
+    float v = velY.sample(linearSampler, uv).r;
+    float2 vel = float2(u, v);
+
+    float2 dt_uv = constants.deltaTime * vel / float2(constants.width, constants.height);
+    float2 prev_uv = uv - dt_uv;
+
+    float val = velY.sample(linearSampler, prev_uv).r;
+    velYTemp.write(float4(val, 0, 0, 0), gid);
 }
 
 kernel void advect_smoke(
-    texture2d<float, access::read>  velX      [[texture(0)]],
-    texture2d<float, access::read>  velY      [[texture(1)]],
-    texture2d<float, access::read>  smoke     [[texture(2)]],
-    texture2d<uint,  access::read>  solids    [[texture(3)]],
-    texture2d<float, access::write> smokeTemp [[texture(4)]],
+    texture2d<float, access::sample> velX      [[texture(0)]],
+    texture2d<float, access::sample> velY      [[texture(1)]],
+    texture2d<float, access::sample> smoke     [[texture(2)]],
+    texture2d<uint,  access::read>   solids    [[texture(3)]],
+    texture2d<float, access::write>  smokeTemp [[texture(4)]],
     constant SimConstants& constants          [[buffer(0)]],
     uint2 gid [[thread_position_in_grid]])
 {
-	// placeholder: just copy smoke into smokeTemp so swap doesn't lose data
-    smokeTemp.write(smoke.read(gid), gid);
-}
+    if (!in_bounds(gid, constants)) return;
+    if (is_solid(gid.x, gid.y, solids, constants)) {
+        smokeTemp.write(float4(0, 0, 0, 1), gid);
+        return;
+    }
+    float2 uv = (float2(gid) + 0.5f) / float2(constants.width, constants.height);
 
-// helpers for Gauss-Seidel stuff
-bool is_solid(
-	uint x,
-	uint y,
-	texture2d<uint, access::read>  solids,
-	constant SimConstants&         constants)
-{
-	if (!in_bounds(uint2(x, y), constants)) return true;
-	return solids.read(uint2(x, y)).x == 1;
-}
+    float u = velX.sample(linearSampler, uv).r;
+    float v = velY.sample(linearSampler, uv).r;
+    float2 vel = float2(u, v);
 
-float get_pressure(
-	uint x,
-	uint y,
-	texture2d<float, access::read_write>  pressure,
-	constant SimConstants&               constants)
-{
-	if (!in_bounds(uint2(x, y), constants)) return 0.f;
-	return pressure.read(uint2(x, y)).x;
+    float2 dt_uv = constants.deltaTime * vel / float2(constants.width, constants.height);
+    float2 prev_uv = uv - dt_uv;
+
+    float4 s = smoke.sample(linearSampler, prev_uv);
+    smokeTemp.write(s, gid);
 }
 
 void solve_pressure(
@@ -261,7 +300,31 @@ kernel void update_velocities(
     texture2d<uint,  access::read>       solids   [[texture(3)]],
     constant SimConstants& constants [[buffer(0)]],
     uint2 gid [[thread_position_in_grid]])
-{}
+{
+    // Update velX (grid size: width+1 x height)
+    if (in_bounds_x1(gid, constants)) {
+        if (is_solid(gid.x, gid.y, solids, constants) || is_solid(gid.x - 1, gid.y, solids, constants)) {
+            velX.write(float4(0), gid);
+        } else {
+            float p_r = pressure.read(gid).x;
+            float p_l = pressure.read(uint2(gid.x - 1, gid.y)).x;
+            float v = velX.read(gid).r - constants.deltaTime / (constants.fluidDensity * constants.cellSize) * (p_r - p_l);
+            velX.write(float4(v, 0, 0, 0), gid);
+        }
+    }
+
+    // Update velY (grid size: width x height+1)
+    if (in_bounds_y1(gid, constants)) {
+        if (is_solid(gid.x, gid.y, solids, constants) || is_solid(gid.x, gid.y - 1, solids, constants)) {
+            velY.write(float4(0), gid);
+        } else {
+            float p_t = pressure.read(gid).x;
+            float p_b = pressure.read(uint2(gid.x, gid.y - 1)).x;
+            float v = velY.read(gid).r - constants.deltaTime / (constants.fluidDensity * constants.cellSize) * (p_t - p_b);
+            velY.write(float4(v, 0, 0, 0), gid);
+        }
+    }
+}
 
 kernel void update_divergence(
 	texture2d<float, access::read>  velX       [[texture(0)]],
@@ -279,7 +342,7 @@ kernel void update_divergence(
 	float du = velX.read(gxp1(gid)).r - velX.read(gid).r;
 	float dv = velY.read(gyp1(gid)).r - velY.read(gid).r;
 	float div = (du + dv) / constants.cellSize;
-	divergence.write(float4(div, 0, 0, 0), gid);
+	divergence.write(float4(div), gid);
 }
 
 kernel void init_solids(
