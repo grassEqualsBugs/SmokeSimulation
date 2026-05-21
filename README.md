@@ -3,8 +3,6 @@
 A grid-based fluid and smoke simulation featuring both GPU (Metal) and CPU (Raylib) implementations.
 
 ## GPU Version (Metal)
-High-performance simulation utilizing Metal kernels for parallel computation.
-
 ### Build and Run
 ```bash
 cd GPU_version
@@ -15,8 +13,6 @@ make
 ---
 
 ## CPU Version (Raylib)
-C++ implementation focused on visualization and interactive debugging using Raylib.
-
 ### Build and Run
 ```bash
 cd CPU_version
