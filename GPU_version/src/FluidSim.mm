@@ -170,7 +170,7 @@
             frameData:(id<MTLBuffer>)frameData {
     MTLSize grid = MTLSizeMake(_width, _height, 1);
 
-    // inject (mouse input)
+    // inject (mouse input) - always run so user can draw even when paused
     [self dispatch:encoder
           pipeline:_injectVelocityPipeline
               grid:MTLSizeMake(_width+1, _height+1, 1)
@@ -186,6 +186,10 @@
               grid:grid
           textures:@[_solids]
            buffers:@[_simConstantsBuffer, frameData]];
+
+    // Check if paused from frameData
+    FrameData *fd = (FrameData *)frameData.contents;
+    if (fd->mouse.isPaused) return;
 
     // advect velocities
     [self dispatch:encoder

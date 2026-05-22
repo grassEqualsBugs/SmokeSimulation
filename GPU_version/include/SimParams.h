@@ -27,6 +27,7 @@ typedef struct {
     bool leftDown;
     bool rightDown;
     bool isSolidMode;
+    bool isPaused;
 } MouseState;
 
 typedef struct {

@@ -31,6 +31,7 @@
     bool          _leftDown;
     bool          _rightDown;
     bool          _isSolidMode;
+    bool          _paused;
 
     NSTextField  *_fpsLabel;
     NSTimeInterval _lastFrameTime;
@@ -175,6 +176,8 @@
         _isSolidMode = !_isSolidMode;
     } else if ([chars isEqualToString:@"r"]) {
         [_sim reset:_commandQueue];
+    } else if ([chars isEqualToString:@" "]) {
+        _paused = !_paused;
     }
 }
 
@@ -204,6 +207,7 @@
     frameData->mouse.leftDown = _leftDown;
     frameData->mouse.rightDown = _rightDown;
     frameData->mouse.isSolidMode = _isSolidMode;
+    frameData->mouse.isPaused = _paused;
 
     _lastMousePos = _mousePos;
 

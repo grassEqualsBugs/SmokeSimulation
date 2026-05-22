@@ -22,6 +22,7 @@ make
 - **Left Click**: Drag to apply velocity to the fluid.
 - **Right Click**: Click/Drag to emit smoke into the grid.
 - **Scroll Wheel**: Adjust brush radius.
+- **Space**: Pause/Resume the simulation.
 - **R**: Reset the simulation.
 - **1**: Toggle Smoke visualization (Default).
 - **2**: Toggle Speed visualization.

@@ -27,16 +27,19 @@ int main() {
     GridVisualization vis(fluidGrid, 1, GridVisMode::SMOKE);
     Brush brush(fluidGrid, 0.9f, 1.8f);
 
+    bool paused = false;
+
     while (!WindowShouldClose()) {
         // Key Inputs
         if (IsKeyPressed(KEY_R)) fluidGrid.reset();
+        if (IsKeyPressed(KEY_SPACE)) paused = !paused;
         if (IsKeyPressed(KEY_ONE)) vis.visMode = GridVisMode::SMOKE;
         if (IsKeyPressed(KEY_TWO)) vis.visMode = GridVisMode::SPEED;
         if (IsKeyPressed(KEY_THREE)) vis.visMode = GridVisMode::DIVERGENCE;
 
         // Updating
         brush.update(camera);
-        fluidGrid.update();
+        if (!paused) fluidGrid.update();
 
         // Drawing
         BeginDrawing();
