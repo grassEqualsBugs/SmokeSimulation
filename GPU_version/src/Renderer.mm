@@ -17,6 +17,7 @@
 - (void)rightMouseDown:(NSEvent *)e    { [(id<InputHandler>)self.delegate rightMouseDown:e]; }
 - (void)rightMouseUp:(NSEvent *)e      { [(id<InputHandler>)self.delegate rightMouseUp:e]; }
 - (void)rightMouseDragged:(NSEvent *)e { [(id<InputHandler>)self.delegate rightMouseDragged:e]; }
+- (void)scrollWheel:(NSEvent *)e       { [(id<InputHandler>)self.delegate scrollWheel:e]; }
 - (void)keyDown:(NSEvent *)e           { [(id<InputHandler>)self.delegate keyDown:e]; }
 - (void)keyUp:(NSEvent *)e             { [(id<InputHandler>)self.delegate keyUp:e]; }
 @end
@@ -144,6 +145,14 @@
     [self updateMousePos:event];
 }
 
+- (void)scrollWheel:(NSEvent *)event {
+    float delta = event.scrollingDeltaY;
+    SimConstants *c = (SimConstants *)_sim.simConstantsBuffer.contents;
+    c->mouseRadius += delta * 0.001f;
+    if (c->mouseRadius < 0.005f) c->mouseRadius = 0.005f;
+    if (c->mouseRadius > 0.5f) c->mouseRadius = 0.5f;
+}
+
 - (void)keyDown:(NSEvent *)event {
     [self handleKeyEvent:event isDown:YES];
 }
@@ -215,15 +224,18 @@
             [renderEncoder setFragmentTexture:[_sim smokeTexture] atIndex:0];
             [renderEncoder setFragmentTexture:[_sim solidsTexture] atIndex:1];
             [renderEncoder setFragmentBuffer:_sim.simConstantsBuffer offset:0 atIndex:0];
+            [renderEncoder setFragmentBuffer:_frameDataBuffer offset:0 atIndex:1];
         } else if (_currentPipeline == _speedPipeline) {
             [renderEncoder setFragmentTexture:[_sim velXTexture] atIndex:0];
             [renderEncoder setFragmentTexture:[_sim velYTexture] atIndex:1];
             [renderEncoder setFragmentTexture:[_sim solidsTexture] atIndex:2];
             [renderEncoder setFragmentBuffer:_sim.simConstantsBuffer offset:0 atIndex:0];
+            [renderEncoder setFragmentBuffer:_frameDataBuffer offset:0 atIndex:1];
         } else if (_currentPipeline == _divergencePipeline) {
             [renderEncoder setFragmentTexture:[_sim divergenceTexture] atIndex:0];
             [renderEncoder setFragmentTexture:[_sim solidsTexture] atIndex:1];
             [renderEncoder setFragmentBuffer:_sim.simConstantsBuffer offset:0 atIndex:0];
+            [renderEncoder setFragmentBuffer:_frameDataBuffer offset:0 atIndex:1];
         }
 
         [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6];

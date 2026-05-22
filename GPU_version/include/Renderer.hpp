@@ -11,6 +11,7 @@
 - (void)rightMouseDown:(NSEvent *)e;
 - (void)rightMouseUp:(NSEvent *)e;
 - (void)rightMouseDragged:(NSEvent *)e;
+- (void)scrollWheel:(NSEvent *)e;
 - (void)keyDown:(NSEvent *)e;
 - (void)keyUp:(NSEvent *)e;
 @end
