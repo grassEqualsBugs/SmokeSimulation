@@ -214,6 +214,11 @@ kernel void inject_velocity(
     constant FrameData&    frame     [[buffer(1)]],
     uint2 gid [[thread_position_in_grid]])
 {
+	float2 uv = float2(
+    	gid.x / (float)constants.width,
+    	(gid.y) / (float)constants.height);
+    if (0.45 < uv.y && uv.y < 0.55 && uv.x < 0.04) velX.write(float4(0.2, 0, 0, 0), gid);
+
     if (!frame.mouse.leftDown || frame.mouse.isSolidMode) return;
 
     float2 mouse_uv_c = c_uv(frame.mouse.pos, constants);
@@ -248,6 +253,11 @@ kernel void inject_smoke(
     constant FrameData&    frame     [[buffer(1)]],
     uint2 gid [[thread_position_in_grid]])
 {
+	float2 uv = float2(
+    	gid.x / (float)constants.width,
+    	(gid.y) / (float)constants.height);
+    if (0.45 < uv.y && uv.y < 0.55 && uv.x < 0.04) smoke.write(float4(1), gid);
+
     if (!frame.mouse.rightDown || frame.mouse.isSolidMode) return;
     if (!in_bounds(gid, constants)) return;
 
