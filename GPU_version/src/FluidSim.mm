@@ -15,6 +15,7 @@
     id<MTLTexture> _smokeTemp;
     id<MTLTexture> _solids;
     id<MTLTexture> _divergence;
+    id<MTLTexture> _pressureSolveData;
 
     // compute pipelines (one needed for each kernel)
     id<MTLComputePipelineState> _injectSmokePipeline; // pipeline for drawing smoke
@@ -27,6 +28,7 @@
     id<MTLComputePipelineState> _initSolidsPipeline;
     id<MTLComputePipelineState> _updateVelocitiesPipeline;
     id<MTLComputePipelineState> _updateDivergencePipeline;
+    id<MTLComputePipelineState> _precomputePressureDataPipeline;
     // red black Gauss-Seidel
     id<MTLComputePipelineState> _gsRedPipeline;
     id<MTLComputePipelineState> _gsBlackPipeline;
@@ -100,6 +102,16 @@
     td.usage       = MTLTextureUsageShaderRead | MTLTextureUsageShaderWrite;
     td.storageMode = MTLStorageModePrivate;
     _solids = [_device newTextureWithDescriptor:td];
+
+    // pressureSolveData uses RG32Float
+    MTLTextureDescriptor *psdDesc = [[MTLTextureDescriptor alloc] init];
+    psdDesc.textureType = MTLTextureType2D;
+    psdDesc.pixelFormat = MTLPixelFormatRG32Float;
+    psdDesc.width       = _width;
+    psdDesc.height      = _height;
+    psdDesc.usage       = MTLTextureUsageShaderRead | MTLTextureUsageShaderWrite;
+    psdDesc.storageMode = MTLStorageModePrivate;
+    _pressureSolveData = [_device newTextureWithDescriptor:psdDesc];
 }
 
 - (id<MTLComputePipelineState>)makePipeline:(id<MTLLibrary>)library name:(NSString *)name {
@@ -122,6 +134,7 @@
     _gsBlackPipeline          = [self makePipeline:library name:@"gs_black"];
     _updateVelocitiesPipeline = [self makePipeline:library name:@"update_velocities"];
     _updateDivergencePipeline = [self makePipeline:library name:@"update_divergence"];
+    _precomputePressureDataPipeline = [self makePipeline:library name:@"precompute_pressure_data"];
     _clearTexturesPipeline    = [self makePipeline:library name:@"clear_textures"];
     _initSolidsPipeline       = [self makePipeline:library name:@"init_solids"];
 }
@@ -214,17 +227,24 @@
            buffers:@[_simConstantsBuffer]];
     [self swapTextures:&_smoke with:&_smokeTemp];
 
+    // precompute pressure data
+    [self dispatch:encoder
+          pipeline:_precomputePressureDataPipeline
+              grid:grid
+          textures:@[_velX, _velY, _solids, _pressureSolveData]
+           buffers:@[_simConstantsBuffer]];
+
     // pressure solve
     for (int i = 0; i < 350; i++) {
         [self dispatch:encoder
               pipeline:_gsRedPipeline
                   grid:grid
-              textures:@[_pressure, _velX, _velY, _solids]
+              textures:@[_pressure, _pressureSolveData]
                buffers:@[_simConstantsBuffer]];
         [self dispatch:encoder
               pipeline:_gsBlackPipeline
                   grid:grid
-              textures:@[_pressure, _velX, _velY, _solids]
+              textures:@[_pressure, _pressureSolveData]
                buffers:@[_simConstantsBuffer]];
     }
 
@@ -269,7 +289,7 @@
     [self dispatch:enc
           pipeline:_clearTexturesPipeline
               grid:MTLSizeMake(_width + 1, _height + 1, 1)
-          textures:@[_velX, _velXTemp, _velY, _velYTemp, _pressure, _smoke, _smokeTemp, _divergence, _solids]
+          textures:@[_velX, _velXTemp, _velY, _velYTemp, _pressure, _smoke, _smokeTemp, _divergence, _solids, _pressureSolveData]
            buffers:@[_simConstantsBuffer]];
 
     [enc endEncoding];

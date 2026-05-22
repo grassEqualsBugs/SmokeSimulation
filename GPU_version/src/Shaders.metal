@@ -365,56 +365,87 @@ kernel void advect_smoke(
 
 void solve_pressure(
 	texture2d<float, access::read_write> pressure,
-    texture2d<float, access::read>       velX,
-    texture2d<float, access::read>       velY,
-    texture2d<uint,  access::read>       solids,
+    texture2d<float, access::read>       pressureSolveData,
     constant SimConstants& constants,
     uint2 gid)
 {
-	float p_new = 0.f;
-	if (!is_solid(gid.x, gid.y, solids, constants)) {
-		int flow_t = !is_solid(gid.x, gid.y + 1, solids, constants);
-		int flow_b = !is_solid(gid.x, gid.y - 1, solids, constants);
-		int flow_l = !is_solid(gid.x - 1, gid.y, solids, constants);
-		int flow_r = !is_solid(gid.x + 1, gid.y, solids, constants);
-		int n = flow_t + flow_b + flow_l + flow_r;
-		if (n != 0) {
-			float del_velocity_sum = (velX.read(gxp1(gid)) - velX.read(gid) + velY.read(gyp1(gid)) - velY.read(gid)).x;
-			float p_sum = (flow_r ? get_pressure(gid.x + 1, gid.y, pressure, constants) : 0) +
-						  (flow_l ? get_pressure(gid.x - 1, gid.y, pressure, constants) : 0) +
-						  (flow_t ? get_pressure(gid.x, gid.y + 1, pressure, constants) : 0) +
-						  (flow_b ? get_pressure(gid.x, gid.y - 1, pressure, constants) : 0);
-			p_new = (p_sum - constants.fluidDensity * constants.cellSize * del_velocity_sum / constants.deltaTime) / n;
-		}
-	}
+    float2 data = pressureSolveData.read(gid).xy;
+    int packedFlags = int(data.x);
+    if (packedFlags == 0) return; // Is solid or no neighbors
+
+    float velocityTerm = data.y;
+    
+    // Unpack flags: flow_r (bit 0), flow_l (bit 1), flow_t (bit 2), flow_b (bit 3)
+    bool flow_r = (packedFlags & 1);
+    bool flow_l = (packedFlags & 2);
+    bool flow_t = (packedFlags & 4);
+    bool flow_b = (packedFlags & 8);
+    
+    int n = flow_r + flow_l + flow_t + flow_b;
+
+    float p_sum = (flow_r ? get_pressure(gid.x + 1, gid.y, pressure, constants) : 0) +
+                  (flow_l ? get_pressure(gid.x - 1, gid.y, pressure, constants) : 0) +
+                  (flow_t ? get_pressure(gid.x, gid.y + 1, pressure, constants) : 0) +
+                  (flow_b ? get_pressure(gid.x, gid.y - 1, pressure, constants) : 0);
+    
+    float p_new = (p_sum - velocityTerm) / n;
 	float p_old = pressure.read(gid).x;
 	pressure.write(p_old + (p_new - p_old) * constants.weightSOR, gid);
 }
 
+kernel void precompute_pressure_data(
+    texture2d<float, access::read>  velX              [[texture(0)]],
+    texture2d<float, access::read>  velY              [[texture(1)]],
+    texture2d<uint,  access::read>  solids            [[texture(2)]],
+    texture2d<float, access::write> pressureSolveData [[texture(3)]],
+    constant SimConstants& constants [[buffer(0)]],
+    uint2 gid [[thread_position_in_grid]])
+{
+    if (!in_bounds(gid, constants)) return;
+
+    if (solids.read(gid).r == 1) {
+        pressureSolveData.write(float4(0), gid);
+        return;
+    }
+
+    bool flow_t = !is_solid(gid.x, gid.y + 1, solids, constants);
+    bool flow_b = !is_solid(gid.x, gid.y - 1, solids, constants);
+    bool flow_l = !is_solid(gid.x - 1, gid.y, solids, constants);
+    bool flow_r = !is_solid(gid.x + 1, gid.y, solids, constants);
+
+    int packedFlags = (flow_r ? 1 : 0) | (flow_l ? 2 : 0) | (flow_t ? 4 : 0) | (flow_b ? 8 : 0);
+    
+    if (packedFlags == 0) {
+        pressureSolveData.write(float4(0), gid);
+        return;
+    }
+
+    float del_velocity_sum = (velX.read(gxp1(gid)) - velX.read(gid) + velY.read(gyp1(gid)) - velY.read(gid)).x;
+    float velocityTerm = constants.fluidDensity * constants.cellSize * del_velocity_sum / constants.deltaTime;
+
+    pressureSolveData.write(float4(float(packedFlags), velocityTerm, 0, 0), gid);
+}
+
 kernel void gs_red(
-    texture2d<float, access::read_write> pressure [[texture(0)]],
-    texture2d<float, access::read>       velX     [[texture(1)]],
-    texture2d<float, access::read>       velY     [[texture(2)]],
-    texture2d<uint,  access::read>       solids   [[texture(3)]],
+    texture2d<float, access::read_write> pressure          [[texture(0)]],
+    texture2d<float, access::read>       pressureSolveData [[texture(1)]],
     constant SimConstants& constants [[buffer(0)]],
     uint2 gid [[thread_position_in_grid]])
 {
 	if (!in_bounds(gid, constants)) return;
 	if ((gid.x + gid.y) % 2 == 0) return;
-	solve_pressure(pressure, velX, velY, solids, constants, gid);
+	solve_pressure(pressure, pressureSolveData, constants, gid);
 }
 
 kernel void gs_black(
-    texture2d<float, access::read_write> pressure [[texture(0)]],
-    texture2d<float, access::read>       velX     [[texture(1)]],
-    texture2d<float, access::read>       velY     [[texture(2)]],
-    texture2d<uint,  access::read>       solids   [[texture(3)]],
+    texture2d<float, access::read_write> pressure          [[texture(0)]],
+    texture2d<float, access::read>       pressureSolveData [[texture(1)]],
     constant SimConstants& constants [[buffer(0)]],
     uint2 gid [[thread_position_in_grid]])
 {
 	if (!in_bounds(gid, constants)) return;
 	if ((gid.x + gid.y) % 2 == 1) return;
-	solve_pressure(pressure, velX, velY, solids, constants, gid);
+	solve_pressure(pressure, pressureSolveData, constants, gid);
 }
 
 kernel void update_velocities(
@@ -490,6 +521,7 @@ kernel void clear_textures(
     texture2d<float, access::write> smokeTemp  [[texture(6)]],
     texture2d<float, access::write> divergence [[texture(7)]],
     texture2d<uint,  access::write> solids     [[texture(8)]],
+    texture2d<float, access::write> pressureSolveData [[texture(9)]],
     constant SimConstants& constants      [[buffer(0)]],
     uint2 gid [[thread_position_in_grid]])
 {
@@ -506,6 +538,7 @@ kernel void clear_textures(
     	smoke.write(float4(0), gid);
      	smokeTemp.write(float4(0), gid);
       	divergence.write(float4(0), gid);
+        pressureSolveData.write(float4(0), gid);
 
         bool isBorder = gid.x == 0 || gid.x == (uint)constants.width - 1
                      || gid.y == 0 || gid.y == (uint)constants.height - 1;
