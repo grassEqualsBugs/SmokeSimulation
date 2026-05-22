@@ -57,7 +57,7 @@
 
     _width = 1600;
     _height = 900;
-    float simScale = 2.5f;
+    float simScale = 2.2f;
     int simWidth = _width / simScale;
     int simHeight = _height / simScale;
 
