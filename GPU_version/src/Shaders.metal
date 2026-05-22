@@ -107,6 +107,9 @@ fragment float4 fragment_speed(
     float2 uv_c = c_uv(in.uv, constants);
     float d = distance(uv_c, mouse_uv_c);
     if (abs(d - constants.mouseRadius) < 0.0005) {
+	   	if (frame.mouse.isSolidMode) {
+	    	return float4(0.3, 0.1, 0.4, 1.0);
+	   	}
         return float4(0.5, 1.0, 0.5, 1.0);
     }
     return baseColor;
@@ -134,6 +137,9 @@ fragment float4 fragment_smoke(
     float2 uv_c = c_uv(in.uv, constants);
     float d = distance(uv_c, mouse_uv_c);
     if (abs(d - constants.mouseRadius) < 0.0005) {
+	   	if (frame.mouse.isSolidMode) {
+	    	return float4(0.3, 0.1, 0.4, 1.0);
+	   	}
         return float4(0.5, 1.0, 0.5, 1.0);
     }
     return baseColor;
@@ -168,6 +174,9 @@ fragment float4 fragment_divergence(
     float2 uv_c = c_uv(in.uv, constants);
     float d = distance(uv_c, mouse_uv_c);
     if (abs(d - constants.mouseRadius) < 0.0005) {
+    	if (frame.mouse.isSolidMode) {
+     		return float4(0.3, 0.1, 0.4, 1.0);
+    	}
         return float4(0.5, 1.0, 0.5, 1.0);
     }
     return baseColor;
