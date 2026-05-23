@@ -162,7 +162,7 @@ fragment float4 fragment_divergence(
         constexpr sampler s(filter::linear);
         float4 sampled = texture.sample(s, in.uv);
         float div = sampled.r;
-        float divergenceColorRange = 0.4f;
+        float divergenceColorRange = 0.8f;
         float t = min(abs(div) / divergenceColorRange, 1.0f);
         float4 bg = float4(float3(0.12), 1.0);
         float4 target = (div < 0) ? float4(0.96, 0.26, 0.26, 1.0)
@@ -214,10 +214,13 @@ kernel void inject_velocity(
     constant FrameData&    frame     [[buffer(1)]],
     uint2 gid [[thread_position_in_grid]])
 {
-	float2 uv = float2(
-    	gid.x / (float)constants.width,
-    	(gid.y) / (float)constants.height);
-    if (0.45 < uv.y && uv.y < 0.55 && uv.x < 0.04) velX.write(float4(0.2, 0, 0, 0), gid);
+	// left side wind
+    if (frame.mouse.windOn) {
+    	float2 uv = float2(
+        	gid.x / (float)constants.width,
+        	(gid.y) / (float)constants.height);
+        if (uv.x == 0) velX.write(float4(0.2, 0, 0, 0), gid);
+    }
 
     if (!frame.mouse.leftDown || frame.mouse.isSolidMode) return;
 
@@ -253,10 +256,13 @@ kernel void inject_smoke(
     constant FrameData&    frame     [[buffer(1)]],
     uint2 gid [[thread_position_in_grid]])
 {
-	float2 uv = float2(
-    	gid.x / (float)constants.width,
-    	(gid.y) / (float)constants.height);
-    if (0.45 < uv.y && uv.y < 0.55 && uv.x < 0.04) smoke.write(float4(1), gid);
+	// constant source of smoke from left side
+    if (frame.mouse.windOn) {
+    	float2 uv = float2(
+        	gid.x / (float)constants.width,
+        	(gid.y) / (float)constants.height);
+        if (0.45 < uv.y && uv.y < 0.55 && uv.x < 0.04) smoke.write(float4(1), gid);
+    }
 
     if (!frame.mouse.rightDown || frame.mouse.isSolidMode) return;
     if (!in_bounds(gid, constants)) return;
@@ -374,20 +380,20 @@ void solve_pressure(
     if (packedFlags == 0) return; // Is solid or no neighbors
 
     float velocityTerm = data.y;
-    
+
     // Unpack flags: flow_r (bit 0), flow_l (bit 1), flow_t (bit 2), flow_b (bit 3)
     bool flow_r = (packedFlags & 1);
     bool flow_l = (packedFlags & 2);
     bool flow_t = (packedFlags & 4);
     bool flow_b = (packedFlags & 8);
-    
+
     int n = flow_r + flow_l + flow_t + flow_b;
 
     float p_sum = (flow_r ? get_pressure(gid.x + 1, gid.y, pressure, constants) : 0) +
                   (flow_l ? get_pressure(gid.x - 1, gid.y, pressure, constants) : 0) +
                   (flow_t ? get_pressure(gid.x, gid.y + 1, pressure, constants) : 0) +
                   (flow_b ? get_pressure(gid.x, gid.y - 1, pressure, constants) : 0);
-    
+
     float p_new = (p_sum - velocityTerm) / n;
 	float p_old = pressure.read(gid).x;
 	pressure.write(p_old + (p_new - p_old) * constants.weightSOR, gid);
@@ -414,7 +420,7 @@ kernel void precompute_pressure_data(
     bool flow_r = !is_solid(gid.x + 1, gid.y, solids, constants);
 
     int packedFlags = (flow_r ? 1 : 0) | (flow_l ? 2 : 0) | (flow_t ? 4 : 0) | (flow_b ? 8 : 0);
-    
+
     if (packedFlags == 0) {
         pressureSolveData.write(float4(0), gid);
         return;

@@ -32,6 +32,7 @@
     bool          _rightDown;
     bool          _isSolidMode;
     bool          _paused;
+    bool          _windOn;
 
     NSTextField  *_fpsLabel;
     NSTimeInterval _lastFrameTime;
@@ -57,7 +58,8 @@
 
     _width = 1600;
     _height = 900;
-    float simScale = 2.2f;
+    _windOn = false;
+    float simScale = 2.8f;
     int simWidth = _width / simScale;
     int simHeight = _height / simScale;
 
@@ -178,6 +180,8 @@
         [_sim reset:_commandQueue];
     } else if ([chars isEqualToString:@" "]) {
         _paused = !_paused;
+    } else if ([chars isEqualToString:@"w"]) {
+        _windOn = !_windOn;
     }
 }
 
@@ -208,6 +212,7 @@
     frameData->mouse.rightDown = _rightDown;
     frameData->mouse.isSolidMode = _isSolidMode;
     frameData->mouse.isPaused = _paused;
+    frameData->mouse.windOn = _windOn;
 
     _lastMousePos = _mousePos;
 

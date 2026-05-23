@@ -235,7 +235,7 @@
            buffers:@[_simConstantsBuffer]];
 
     // pressure solve
-    for (int i = 0; i < 500; i++) {
+    for (int i = 0; i < 700; i++) {
         [self dispatch:encoder
               pipeline:_gsRedPipeline
                   grid:grid
