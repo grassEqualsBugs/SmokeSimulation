@@ -28,6 +28,7 @@ make
 - **2**: Toggle Speed visualization.
 - **3**: Toggle Divergence (Pressure Error) visualization.
 - **B**: Toggle Solid Mode (GPU Version only).
+- **W**: Toggle left side Wind and Smoke Emitter (GPU Version only) (Default off)
 
 
 ---
