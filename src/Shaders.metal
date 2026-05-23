@@ -216,10 +216,7 @@ kernel void inject_velocity(
 {
 	// left side wind
     if (frame.mouse.windOn) {
-    	float2 uv = float2(
-        	gid.x / (float)constants.width,
-        	(gid.y) / (float)constants.height);
-        if (uv.x == 0) velX.write(float4(0.2, 0, 0, 0), gid);
+        if (gid.x == 0) velX.write(float4(0.2, 0, 0, 0), gid);
     }
 
     if (!frame.mouse.leftDown || frame.mouse.isSolidMode) return;
