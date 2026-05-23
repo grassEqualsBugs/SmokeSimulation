@@ -1,17 +1,14 @@
 # Smoke Simulation
 
-A grid-based fluid and smoke simulation featuring both GPU (Metal) and CPU (Raylib) implementations.
+A grid-based fluid and smoke simulation written in Objective-C++ and Metal. An older version of the project written for the CPU, using the Raylib framework, is also included.
 
-## GPU Version (Metal)
-### Build and Run
+## Build and Run
 ```bash
-cd GPU_version
 make
 ./bin/smoke_gpu
 ```
 
-## CPU Version (Raylib)
-### Build and Run
+### CPU Version
 ```bash
 cd CPU_version
 make
@@ -27,8 +24,8 @@ make
 - **1**: Toggle Smoke visualization (Default).
 - **2**: Toggle Speed visualization.
 - **3**: Toggle Divergence (Pressure Error) visualization.
-- **B**: Toggle Solid Mode (GPU Version only).
-- **W**: Toggle left side Wind and Smoke Emitter (GPU Version only) (Default off)
+- **B**: Toggle Solid Mode (Not in CPU version).
+- **W**: Toggle left side Wind and Smoke Emitter (Not in CPU version) (Default off)
 
 
 ---
