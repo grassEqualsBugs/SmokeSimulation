@@ -1,5 +1,5 @@
-#include "include/raylib.h"
-#include "include/rlgl.h"
+#include "include/raylib/raylib.h"
+#include "include/raylib/rlgl.h"
 #include "include/FluidGrid.hpp"
 #include "include/GridVisualization.hpp"
 #include "include/Brush.hpp"

@@ -1,5 +1,5 @@
 #include "include/Brush.hpp"
-#include "include/raymath.h"
+#include "include/raylib/raymath.h"
 
 Brush::Brush(FluidGrid& grid, float radius, float velocityStrength)
     : fluidGrid(grid), radius(radius), velocityStrength(velocityStrength), lastMouseWorldPos({0, 0}), isMousePressed(false) {}

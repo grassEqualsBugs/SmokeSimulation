@@ -1,6 +1,6 @@
 #pragma once
 #include <vector>
-#include "raylib.h"
+#include "raylib/raylib.h"
 
 // Default values for the config
 struct FluidConfig {

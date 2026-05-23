@@ -1,5 +1,5 @@
 #include "include/FluidGrid.hpp"
-#include "include/raymath.h"
+#include "include/raylib/raymath.h"
 #include <random>
 #include <algorithm>
 

@@ -1,5 +1,5 @@
-obj/FluidGrid.o: FluidGrid.cpp include/FluidGrid.hpp include/raylib.h \
-  include/raymath.h
+obj/FluidGrid.o: FluidGrid.cpp include/FluidGrid.hpp \
+  include/raylib/raylib.h include/raylib/raymath.h
 include/FluidGrid.hpp:
-include/raylib.h:
-include/raymath.h:
+include/raylib/raylib.h:
+include/raylib/raymath.h:

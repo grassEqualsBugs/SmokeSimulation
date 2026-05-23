@@ -1,7 +1,6 @@
 #pragma once
-#include "raylib.h"
+#include "raylib/raylib.h"
 #include "FluidGrid.hpp"
-#include <string>
 #include <functional>
 
 enum class GridVisMode {

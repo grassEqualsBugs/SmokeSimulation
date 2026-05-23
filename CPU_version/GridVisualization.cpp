@@ -1,7 +1,7 @@
 #include "include/GridVisualization.hpp"
 #include "include/RaylibUtils.hpp"
-#include "include/rlgl.h"
-#include "include/raymath.h"
+#include "include/raylib/rlgl.h"
+#include "include/raylib/raymath.h"
 #include <cmath>
 
 using namespace RaylibUtils;
