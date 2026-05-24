@@ -88,7 +88,7 @@ fragment float4 fragment_speed(
     float4 baseColor;
 
     if (isSolid == 1) {
-        baseColor = float4(0.3, 0.1, 0.4, 1.0);
+        baseColor = float4(float3(0.1), 1.0);
     } else {
         constexpr sampler s(filter::linear);
         float u = velX.sample(s, in.uv).r;
@@ -108,7 +108,7 @@ fragment float4 fragment_speed(
     float d = distance(uv_c, mouse_uv_c);
     if (abs(d - constants.mouseRadius) < 0.0005) {
 	   	if (frame.mouse.isSolidMode) {
-	    	return float4(0.3, 0.1, 0.4, 1.0);
+	    	return float4(float3(0.1), 1.0);
 	   	}
         return float4(0.5, 1.0, 0.5, 1.0);
     }
@@ -127,7 +127,7 @@ fragment float4 fragment_smoke(
     float4 baseColor;
 
     if (isSolid == 1) {
-        baseColor = float4(0.3, 0.1, 0.4, 1.0);
+        baseColor = float4(float3(0.1), 1.0);
     } else {
         constexpr sampler s(filter::linear);
         baseColor = texture.sample(s, in.uv);
@@ -138,7 +138,7 @@ fragment float4 fragment_smoke(
     float d = distance(uv_c, mouse_uv_c);
     if (abs(d - constants.mouseRadius) < 0.0005) {
 	   	if (frame.mouse.isSolidMode) {
-	    	return float4(0.3, 0.1, 0.4, 1.0);
+	    	return float4(float3(0.1), 1.0);
 	   	}
         return float4(0.5, 1.0, 0.5, 1.0);
     }
@@ -157,7 +157,7 @@ fragment float4 fragment_divergence(
     float4 baseColor;
 
     if (isSolid == 1) {
-        baseColor = float4(0.3, 0.1, 0.4, 1.0);
+        baseColor = float4(float3(0.1), 1.0);
     } else {
         constexpr sampler s(filter::linear);
         float4 sampled = texture.sample(s, in.uv);
@@ -175,7 +175,7 @@ fragment float4 fragment_divergence(
     float d = distance(uv_c, mouse_uv_c);
     if (abs(d - constants.mouseRadius) < 0.0005) {
     	if (frame.mouse.isSolidMode) {
-     		return float4(0.3, 0.1, 0.4, 1.0);
+     		return float4(float3(0.1), 1.0);
     	}
         return float4(0.5, 1.0, 0.5, 1.0);
     }
